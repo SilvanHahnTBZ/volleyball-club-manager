@@ -10,7 +10,7 @@ interface UserContextType {
   registerUser: (userData: Omit<User, 'id' | 'registrationDate' | 'isActive'>) => boolean;
   updateUser: (userId: string, updates: Partial<User>) => void;
   deleteUser: (userId: string) => void;
-  hasPermission: (action: string) => boolean;
+  hasPermission: (action: string, targetUserId?: string, teamId?: string) => boolean;
   getUsersByRole: (role: User['role']) => User[];
   searchUsers: (searchTerm: string) => User[];
 }
@@ -128,24 +128,78 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const hasPermission = (action: string): boolean => {
+  const hasPermission = (action: string, targetUserId?: string, teamId?: string): boolean => {
     if (!currentUser || !currentUser.isActive) return false;
     
     switch (action) {
       case 'create_event':
         return ['admin', 'trainer'].includes(currentUser.role);
+        
       case 'edit_event':
         return ['admin', 'trainer'].includes(currentUser.role);
+        
       case 'delete_event':
         return currentUser.role === 'admin';
+        
       case 'manage_users':
         return currentUser.role === 'admin';
+        
       case 'manage_teams':
         return ['admin', 'trainer'].includes(currentUser.role);
+        
       case 'join_event':
         return ['player', 'trainer', 'admin'].includes(currentUser.role);
+        
       case 'view_profiles':
+        if (currentUser.role === 'admin') return true;
+        if (currentUser.role === 'trainer' && targetUserId) {
+          // Trainer kann Profile von Spielern in seinen Teams sehen
+          const targetUser = users.find(u => u.id === targetUserId);
+          return targetUser ? targetUser.teams.some(t => currentUser.assignedTeams?.includes(t)) : false;
+        }
+        if (targetUserId) {
+          // Eigenes Profil oder bei Eltern: Kinder-Profile
+          return currentUser.id === targetUserId || 
+                 (currentUser.role === 'parent' && currentUser.parentOf?.includes(targetUserId));
+        }
         return true;
+        
+      case 'view_helper_tasks':
+        if (currentUser.role === 'admin') return true;
+        if (currentUser.role === 'trainer') return true;
+        if (targetUserId) {
+          // Nur eigene Helfereinsätze oder bei Eltern: die der Kinder
+          return currentUser.id === targetUserId || 
+                 (currentUser.role === 'parent' && currentUser.parentOf?.includes(targetUserId));
+        }
+        return false;
+        
+      case 'create_helper_task':
+        return ['admin', 'trainer'].includes(currentUser.role);
+        
+      case 'edit_helper_task':
+        return ['admin', 'trainer'].includes(currentUser.role);
+        
+      case 'view_team_events':
+        if (currentUser.role === 'admin') return true;
+        if (currentUser.role === 'trainer' && teamId) {
+          return currentUser.assignedTeams?.includes(teamId) || false;
+        }
+        if (currentUser.role === 'player' && teamId) {
+          return currentUser.teams.includes(teamId);
+        }
+        if (currentUser.role === 'parent' && teamId) {
+          // Eltern sehen Events der Teams ihrer Kinder
+          const childrenInTeam = users.filter(u => 
+            currentUser.parentOf?.includes(u.id) && u.teams.includes(teamId)
+          );
+          return childrenInTeam.length > 0;
+        }
+        return false;
+        
+      case 'assign_teams':
+        return currentUser.role === 'admin';
+        
       default:
         return false;
     }

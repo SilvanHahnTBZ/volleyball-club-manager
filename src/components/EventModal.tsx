@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -7,9 +6,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Event } from '@/types';
 import { useUser } from '@/contexts/UserContext';
 import { EventParticipation } from './EventParticipation';
+import { LocationMap } from './LocationMap';
 
 interface EventModalProps {
   isOpen: boolean;
@@ -44,6 +45,8 @@ export const EventModal: React.FC<EventModalProps> = ({
     maxParticipants: '',
     requiresApproval: false
   });
+
+  const [showMap, setShowMap] = useState(false);
 
   const canEdit = hasPermission('edit_event') && !viewOnly;
   const canCreate = hasPermission('create_event');
@@ -129,7 +132,7 @@ export const EventModal: React.FC<EventModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {viewOnly 
@@ -142,50 +145,70 @@ export const EventModal: React.FC<EventModalProps> = ({
         </DialogHeader>
         
         {viewOnly && editingEvent ? (
-          <div className="space-y-6">
-            {/* Event Details anzeigen */}
-            <div className="space-y-4">
-              <div>
-                <h3 className="font-medium text-lg">{editingEvent.title}</h3>
-                <p className="text-gray-600">
-                  {editingEvent.date.toLocaleDateString('de-DE', { 
-                    weekday: 'long', 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
-                  })}
-                  {editingEvent.time && ` um ${editingEvent.time}`}
-                </p>
+          <Tabs defaultValue="details" className="space-y-4">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="details">Details</TabsTrigger>
+              <TabsTrigger value="location">Standort</TabsTrigger>
+              <TabsTrigger value="participation">Teilnahme</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="details" className="space-y-4">
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-medium text-lg">{editingEvent.title}</h3>
+                  <p className="text-gray-600">
+                    {editingEvent.date.toLocaleDateString('de-DE', { 
+                      weekday: 'long', 
+                      year: 'numeric', 
+                      month: 'long', 
+                      day: 'numeric' 
+                    })}
+                    {editingEvent.time && ` um ${editingEvent.time}`}
+                  </p>
+                </div>
+                
+                {editingEvent.location && (
+                  <div>
+                    <Label className="text-sm font-medium">Ort</Label>
+                    <p className="text-gray-700">{editingEvent.location}</p>
+                  </div>
+                )}
+                
+                {editingEvent.opponent && (
+                  <div>
+                    <Label className="text-sm font-medium">Gegner</Label>
+                    <p className="text-gray-700">{editingEvent.opponent}</p>
+                  </div>
+                )}
+                
+                {editingEvent.description && (
+                  <div>
+                    <Label className="text-sm font-medium">Beschreibung</Label>
+                    <p className="text-gray-700">{editingEvent.description}</p>
+                  </div>
+                )}
               </div>
-              
-              {editingEvent.location && (
-                <div>
-                  <Label className="text-sm font-medium">Ort</Label>
-                  <p className="text-gray-700">{editingEvent.location}</p>
-                </div>
+            </TabsContent>
+
+            <TabsContent value="location">
+              {editingEvent.location ? (
+                <LocationMap 
+                  location={editingEvent.location} 
+                  title={editingEvent.title}
+                  showMap={true}
+                />
+              ) : (
+                <p className="text-gray-600 text-center py-8">Kein Standort für dieses Event hinterlegt</p>
               )}
-              
-              {editingEvent.opponent && (
-                <div>
-                  <Label className="text-sm font-medium">Gegner</Label>
-                  <p className="text-gray-700">{editingEvent.opponent}</p>
-                </div>
-              )}
-              
-              {editingEvent.description && (
-                <div>
-                  <Label className="text-sm font-medium">Beschreibung</Label>
-                  <p className="text-gray-700">{editingEvent.description}</p>
-                </div>
-              )}
-            </div>
-            
-            {/* Teilnahme-Sektion */}
-            <EventParticipation 
-              event={editingEvent} 
-              onUpdateEvent={handleUpdateEvent}
-            />
-          </div>
+            </TabsContent>
+
+            <TabsContent value="participation">
+              <EventParticipation 
+                event={editingEvent} 
+                onUpdateEvent={handleUpdateEvent}
+              />
+            </TabsContent>
+          </Tabs>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
@@ -273,6 +296,30 @@ export const EventModal: React.FC<EventModalProps> = ({
                 </Select>
               </div>
             </div>
+
+            {/* Location Preview */}
+            {formData.location && (canEdit || canCreate) && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Standort-Vorschau</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowMap(!showMap)}
+                  >
+                    {showMap ? 'Karte ausblenden' : 'Karte anzeigen'}
+                  </Button>
+                </div>
+                {showMap && (
+                  <LocationMap 
+                    location={formData.location} 
+                    title={formData.title || 'Event'}
+                    showMap={true}
+                  />
+                )}
+              </div>
+            )}
 
             {formData.type === 'game' && (
               <div className="space-y-2">

@@ -205,14 +205,23 @@ const Index = () => {
 
   const userEvents = currentUser ? events.filter(event => {
     if (currentUser.role === 'admin') return true;
+    
     if (currentUser.role === 'trainer') {
       const userTeams = getTeamsByUser(currentUser.id, currentUser.role);
       return event.teamId ? userTeams.some(team => team.id === event.teamId) : true;
     }
+    
     if (currentUser.role === 'player') {
       const userTeams = getTeamsByUser(currentUser.id, currentUser.role);
       return event.teamId ? userTeams.some(team => team.id === event.teamId) : true;
     }
+    
+    if (currentUser.role === 'parent') {
+      // Parents see events for teams their children are in
+      const userTeams = getTeamsByUser(currentUser.id, currentUser.role);
+      return event.teamId ? userTeams.some(team => team.id === event.teamId) : true;
+    }
+    
     return true;
   }) : events;
 
@@ -291,10 +300,12 @@ const Index = () => {
                 <CalendarIcon className="h-4 w-4" />
                 Kalender
               </TabsTrigger>
-              <TabsTrigger value="teams" className="flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                Teams
-              </TabsTrigger>
+              {hasPermission('manage_teams') && (
+                <TabsTrigger value="teams" className="flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Teams
+                </TabsTrigger>
+              )}
               <TabsTrigger value="helper" className="flex items-center gap-2">
                 <Wrench className="h-4 w-4" />
                 Helfereinsätze
@@ -336,9 +347,11 @@ const Index = () => {
               </div>
             </TabsContent>
 
-            <TabsContent value="teams" className="space-y-0">
-              <TeamManagement />
-            </TabsContent>
+            {hasPermission('manage_teams') && (
+              <TabsContent value="teams" className="space-y-0">
+                <TeamManagement />
+              </TabsContent>
+            )}
 
             <TabsContent value="helper" className="space-y-0">
               <HelperTaskManagement

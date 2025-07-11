@@ -218,7 +218,7 @@ const Index = () => {
                   events={events}
                   selectedDate={selectedDate}
                   onDateSelect={setSelectedDate}
-                  onDateDoubleClick={hasPermission('create_event') ? openAddModal : openViewModal}
+                  onDateDoubleClick={(date: Date) => hasPermission('create_event') ? openAddModal(date) : openViewModal(events.find(e => e.date.toDateString() === date.toDateString()) || events[0])}
                   onEventClick={openViewModal}
                 />
               </div>

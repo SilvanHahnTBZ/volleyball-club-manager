@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Event } from '@/pages/Index';
+import { Event } from '@/types';
 
 interface CalendarProps {
   events: Event[];

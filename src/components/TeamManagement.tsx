@@ -22,7 +22,7 @@ export const TeamManagement: React.FC = () => {
 
   const canManageTeams = hasPermission('manage_users');
   const userTeams = currentUser ? teams.filter(team => 
-    team.trainers.includes(currentUser.id) || currentUser.role === 'admin'
+    team.trainers.includes(currentUser.id) || currentUser.roles.includes('admin')
   ) : [];
 
   const handleDeleteTeam = (teamId: string) => {

@@ -3,7 +3,7 @@ export interface Event {
   id: string;
   title: string;
   date: Date;
-  type: 'training' | 'game' | 'tournament';
+  type: 'training' | 'game' | 'tournament' | 'helper';
   time?: string;
   location?: string;
   venueType?: 'indoor' | 'beach' | 'club';
@@ -14,6 +14,7 @@ export interface Event {
   createdBy: string;
   requiresApproval?: boolean;
   teamId?: string;
+  helperTask?: HelperTask;
 }
 
 export interface User {
@@ -30,6 +31,7 @@ export interface User {
   profileImage?: string;
   isActive: boolean;
   registrationDate: Date;
+  eventParticipations?: EventParticipation[];
 }
 
 export interface Team {
@@ -55,10 +57,23 @@ export interface TrainingTime {
 
 export interface HelperTask {
   id: string;
-  eventId: string;
+  eventId?: string;
   task: string;
-  completed: boolean;
+  status: 'open' | 'completed' | 'no-show';
+  assignedTo?: string;
   assignedDate: Date;
+  completedDate?: Date;
+  createdBy: string;
+  description?: string;
+  priority: 'low' | 'medium' | 'high';
+}
+
+export interface EventParticipation {
+  id: string;
+  eventId: string;
+  userId: string;
+  status: 'attending' | 'not-attending' | 'maybe' | 'no-response';
+  timestamp: Date;
 }
 
 export interface Venue {

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Calendar } from '@/components/Calendar';
+import { PersonalCalendar } from '@/components/PersonalCalendar';
+import { HelperTaskManagement } from '@/components/HelperTaskManagement';
 import { EventModal } from '@/components/EventModal';
 import { EventList } from '@/components/EventList';
 import { LoginForm } from '@/components/LoginForm';
@@ -7,8 +8,8 @@ import { UserProfile } from '@/components/UserProfile';
 import { TeamManagement } from '@/components/TeamManagement';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Volleyball, LogIn, LogOut, User, Users, Calendar as CalendarIcon, Settings } from 'lucide-react';
-import { Event } from '@/types';
+import { Plus, Volleyball, LogIn, LogOut, User, Users, Calendar as CalendarIcon, Wrench } from 'lucide-react';
+import { Event, HelperTask } from '@/types';
 import { useUser } from '@/contexts/UserContext';
 import { useTeam } from '@/contexts/TeamContext';
 import { toast } from '@/hooks/use-toast';
@@ -56,6 +57,30 @@ const Index = () => {
       participants: ['1'],
       createdBy: '1',
       maxParticipants: 8
+    }
+  ]);
+
+  const [helperTasks, setHelperTasks] = useState<HelperTask[]>([
+    {
+      id: '1',
+      task: 'Schiedsrichter U16 Spiel',
+      status: 'open',
+      assignedTo: '3',
+      assignedDate: new Date(2025, 6, 20),
+      createdBy: '2',
+      description: 'Schiedsrichter für das U16 Spiel am Samstag',
+      priority: 'high'
+    },
+    {
+      id: '2',
+      task: 'Hallenaufbau Turnier',
+      status: 'completed',
+      assignedTo: '5',
+      assignedDate: new Date(2025, 6, 10),
+      completedDate: new Date(2025, 6, 10),
+      createdBy: '1',
+      description: 'Aufbau der Netze und Bänke für das Turnier',
+      priority: 'medium'
     }
   ]);
 
@@ -109,6 +134,24 @@ const Index = () => {
       title: "Event gelöscht",
       description: `"${eventToDelete?.title}" wurde gelöscht.`,
     });
+  };
+
+  const handleCreateHelperTask = (taskData: Omit<HelperTask, 'id'>) => {
+    const newTask: HelperTask = {
+      ...taskData,
+      id: Date.now().toString()
+    };
+    setHelperTasks([...helperTasks, newTask]);
+  };
+
+  const handleUpdateHelperTask = (taskId: string, updates: Partial<HelperTask>) => {
+    setHelperTasks(helperTasks.map(task => 
+      task.id === taskId ? { ...task, ...updates } : task
+    ));
+  };
+
+  const handleDeleteHelperTask = (taskId: string) => {
+    setHelperTasks(helperTasks.filter(task => task.id !== taskId));
   };
 
   const openEditModal = (event: Event) => {
@@ -243,7 +286,7 @@ const Index = () => {
       {currentUser ? (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="calendar" className="flex items-center gap-2">
                 <CalendarIcon className="h-4 w-4" />
                 Kalender
@@ -252,6 +295,14 @@ const Index = () => {
                 <Users className="h-4 w-4" />
                 Teams
               </TabsTrigger>
+              <TabsTrigger value="helper" className="flex items-center gap-2">
+                <Wrench className="h-4 w-4" />
+                Helfereinsätze
+              </TabsTrigger>
+              <TabsTrigger value="personal" className="flex items-center gap-2">
+                <User className="h-4 w-4" />
+                Mein Kalender
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="calendar" className="space-y-0">
@@ -259,8 +310,9 @@ const Index = () => {
                 {/* Calendar */}
                 <div className="lg:col-span-2">
                   <div className="bg-white rounded-xl shadow-lg p-6">
-                    <Calendar 
+                    <PersonalCalendar
                       events={userEvents}
+                      helperTasks={helperTasks}
                       selectedDate={selectedDate}
                       onDateSelect={setSelectedDate}
                       onDateDoubleClick={(date: Date) => hasPermission('create_event') ? openAddModal(date) : openViewModal(userEvents.find(e => e.date.toDateString() === date.toDateString()) || userEvents[0])}
@@ -287,6 +339,26 @@ const Index = () => {
             <TabsContent value="teams" className="space-y-0">
               <TeamManagement />
             </TabsContent>
+
+            <TabsContent value="helper" className="space-y-0">
+              <HelperTaskManagement
+                helperTasks={helperTasks}
+                onCreateTask={handleCreateHelperTask}
+                onUpdateTask={handleUpdateHelperTask}
+                onDeleteTask={handleDeleteHelperTask}
+              />
+            </TabsContent>
+
+            <TabsContent value="personal" className="space-y-0">
+              <PersonalCalendar
+                events={userEvents}
+                helperTasks={helperTasks}
+                selectedDate={selectedDate}
+                onDateSelect={setSelectedDate}
+                onDateDoubleClick={(date: Date) => hasPermission('create_event') ? openAddModal(date) : openViewModal(userEvents.find(e => e.date.toDateString() === date.toDateString()) || userEvents[0])}
+                onEventClick={openViewModal}
+              />
+            </TabsContent>
           </Tabs>
         </div>
       ) : (
@@ -311,7 +383,7 @@ const Index = () => {
         </div>
       )}
 
-      {/* Event Modal */}
+      {/* Modals */}
       <EventModal 
         isOpen={isModalOpen}
         onClose={() => {
@@ -326,17 +398,17 @@ const Index = () => {
         viewOnly={viewOnlyMode}
       />
 
-      {/* Login Modal */}
       <LoginForm 
         isOpen={isLoginOpen}
         onClose={() => setIsLoginOpen(false)}
       />
 
-      {/* User Profile Modal */}
       <UserProfile
         isOpen={isProfileOpen}
         onClose={() => setIsProfileOpen(false)}
         user={currentUser}
+        events={events}
+        helperTasks={helperTasks}
       />
     </div>
   );

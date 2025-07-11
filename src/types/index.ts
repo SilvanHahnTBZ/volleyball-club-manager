@@ -21,7 +21,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'trainer' | 'player' | 'parent';
+  roles: ('admin' | 'trainer' | 'player' | 'parent')[]; // Changed from single role to array
   teams: string[];
   assignedTeams?: string[]; // Teams that trainers are assigned to manage
   parentOf?: string[]; // User IDs of children (for parents)

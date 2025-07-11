@@ -26,11 +26,31 @@ export const AdminSetup: React.FC = () => {
     try {
       console.log('Making user admin:', email);
       
-      // Find user by email and make them admin
+      // Get current user roles and add admin role
+      const { data: currentData, error: fetchError } = await supabase
+        .from('profiles')
+        .select('roles')
+        .eq('email', email.toLowerCase())
+        .single();
+
+      if (fetchError) {
+        console.error('Error fetching user:', fetchError);
+        toast({
+          title: "Benutzer nicht gefunden",
+          description: "Kein Benutzer mit dieser E-Mail-Adresse gefunden.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const currentRoles = currentData.roles || ['player'];
+      const updatedRoles = currentRoles.includes('admin') ? currentRoles : [...currentRoles, 'admin'];
+      
+      // Update user with admin role
       const { data, error } = await supabase
         .from('profiles')
         .update({ 
-          role: 'admin',
+          roles: updatedRoles,
           updated_at: new Date().toISOString()
         })
         .eq('email', email.toLowerCase())
@@ -40,7 +60,7 @@ export const AdminSetup: React.FC = () => {
         console.error('Error making user admin:', error);
         toast({
           title: "Fehler",
-          description: "Benutzer konnte nicht zum Admin gemacht werden. Überprüfen Sie die E-Mail-Adresse.",
+          description: "Benutzer konnte nicht zum Admin gemacht werden.",
           variant: "destructive",
         });
         return;
@@ -56,8 +76,8 @@ export const AdminSetup: React.FC = () => {
       }
 
       toast({
-        title: "Admin erstellt",
-        description: `${email} wurde erfolgreich zum Administrator gemacht.`,
+        title: "Admin-Rolle hinzugefügt",
+        description: `${email} hat jetzt Administrator-Rechte.`,
       });
       
       setEmail('');

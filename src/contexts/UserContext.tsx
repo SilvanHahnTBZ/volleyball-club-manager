@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '@/types';
 import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
@@ -13,7 +12,7 @@ interface UserContextType {
   updateUser: (userId: string, updates: Partial<User>) => void;
   deleteUser: (userId: string) => void;
   hasPermission: (action: string, targetUserId?: string, teamId?: string) => boolean;
-  getUsersByRole: (role: User['role']) => User[];
+  getUsersByRole: (role: User['roles'][0]) => User[];
   searchUsers: (searchTerm: string) => User[];
   refreshUsers: () => Promise<void>;
 }
@@ -51,7 +50,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         id: profile.id,
         name: profile.name,
         email: profile.email,
-        role: profile.role,
+        roles: profile.roles || ['player'], // Handle array of roles
         teams: profile.teams || [],
         assignedTeams: profile.assigned_teams || [],
         parentOf: profile.parent_of || [],
@@ -92,7 +91,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       const dbUpdates = {
         name: updates.name,
-        role: updates.role,
+        roles: updates.roles, // Updated to handle roles array
         teams: updates.teams,
         assigned_teams: updates.assignedTeams,
         parent_of: updates.parentOf,
@@ -142,61 +141,66 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const hasPermission = (action: string, targetUserId?: string, teamId?: string): boolean => {
     if (!currentUser || !currentUser.isActive) return false;
     
+    const userRoles = currentUser.roles || [];
+    
     switch (action) {
       case 'create_event':
-        return ['admin', 'trainer'].includes(currentUser.role);
+        return userRoles.includes('admin') || userRoles.includes('trainer');
         
       case 'edit_event':
-        return ['admin', 'trainer'].includes(currentUser.role);
+        return userRoles.includes('admin') || userRoles.includes('trainer');
         
       case 'delete_event':
-        return currentUser.role === 'admin';
+        return userRoles.includes('admin');
         
       case 'manage_users':
-        return currentUser.role === 'admin';
+        return userRoles.includes('admin');
         
       case 'manage_teams':
-        return ['admin', 'trainer'].includes(currentUser.role);
+        return userRoles.includes('admin') || userRoles.includes('trainer');
         
       case 'join_event':
-        return ['player', 'trainer', 'admin'].includes(currentUser.role);
+        return userRoles.includes('player') || userRoles.includes('trainer') || userRoles.includes('admin');
         
       case 'view_profiles':
-        if (currentUser.role === 'admin') return true;
-        if (currentUser.role === 'trainer' && targetUserId) {
+        if (userRoles.includes('admin')) return true;
+        if (userRoles.includes('trainer') && targetUserId) {
           const targetUser = users.find(u => u.id === targetUserId);
           return targetUser ? targetUser.teams.some(t => currentUser.assignedTeams?.includes(t)) : false;
         }
         if (targetUserId) {
           return currentUser.id === targetUserId || 
-                 (currentUser.role === 'parent' && currentUser.parentOf?.includes(targetUserId));
+                 (userRoles.includes('parent') && currentUser.parentOf?.includes(targetUserId));
         }
         return true;
         
       case 'view_helper_tasks':
-        if (currentUser.role === 'admin') return true;
-        if (currentUser.role === 'trainer') return true;
+        if (userRoles.includes('admin')) return true;
+        if (userRoles.includes('trainer')) return true;
         if (targetUserId) {
           return currentUser.id === targetUserId || 
-                 (currentUser.role === 'parent' && currentUser.parentOf?.includes(targetUserId));
+                 (userRoles.includes('parent') && currentUser.parentOf?.includes(targetUserId));
         }
         return false;
         
       case 'create_helper_task':
-        return ['admin', 'trainer'].includes(currentUser.role);
+        return userRoles.includes('admin') || userRoles.includes('trainer');
         
       case 'edit_helper_task':
-        return ['admin', 'trainer'].includes(currentUser.role);
+        return userRoles.includes('admin') || userRoles.includes('trainer');
+        
+      case 'delete_helper_task':
+        return userRoles.includes('admin');
         
       case 'view_team_events':
-        if (currentUser.role === 'admin') return true;
-        if (currentUser.role === 'trainer' && teamId) {
+        if (userRoles.includes('admin')) return true;
+        if (userRoles.includes('trainer') && teamId) {
           return currentUser.assignedTeams?.includes(teamId) || false;
         }
-        if (currentUser.role === 'player' && teamId) {
+        if (userRoles.includes('player') && teamId) {
           return currentUser.teams.includes(teamId);
         }
-        if (currentUser.role === 'parent' && teamId) {
+        if (userRoles.includes('parent') && teamId) {
           const childrenInTeam = users.filter(u => 
             currentUser.parentOf?.includes(u.id) && u.teams.includes(teamId)
           );
@@ -205,15 +209,15 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return false;
         
       case 'assign_teams':
-        return currentUser.role === 'admin';
+        return userRoles.includes('admin');
         
       default:
         return false;
     }
   };
 
-  const getUsersByRole = (role: User['role']): User[] => {
-    return users.filter(user => user.role === role && user.isActive);
+  const getUsersByRole = (role: User['roles'][0]): User[] => {
+    return users.filter(user => user.roles.includes(role) && user.isActive);
   };
 
   const searchUsers = (searchTerm: string): User[] => {

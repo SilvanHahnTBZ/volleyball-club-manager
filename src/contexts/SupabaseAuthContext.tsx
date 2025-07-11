@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
@@ -83,7 +82,7 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
           id: data.id,
           name: data.name,
           email: data.email,
-          role: data.role,
+          roles: data.roles || ['player'], // Handle array of roles
           teams: data.teams || [],
           assignedTeams: data.assigned_teams || [],
           parentOf: data.parent_of || [],
@@ -149,7 +148,7 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
         id: data.user.id,
         email,
         name,
-        role: 'player',
+        roles: ['player'], // Default to player role
         teams: [],
         is_active: true,
       });
@@ -174,7 +173,7 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
     console.log('Updating profile:', updates);
     const dbUpdates = {
       name: updates.name,
-      role: updates.role,
+      roles: updates.roles, // Handle array of roles
       teams: updates.teams,
       assigned_teams: updates.assignedTeams,
       parent_of: updates.parentOf,

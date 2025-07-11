@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -205,9 +204,13 @@ export const UserProfile: React.FC<UserProfileProps> = ({
                     
                     <div className="flex items-center gap-2">
                       <Shield className="h-4 w-4 text-gray-500" />
-                      <Badge className={getRoleColor(user.role)}>
-                        {getRoleLabel(user.role)}
-                      </Badge>
+                      <div className="flex flex-wrap gap-1">
+                        {user.roles.map((role, index) => (
+                          <Badge key={index} className={getRoleColor(role)}>
+                            {getRoleLabel(role)}
+                          </Badge>
+                        ))}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

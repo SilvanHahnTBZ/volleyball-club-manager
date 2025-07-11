@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -79,6 +78,7 @@ export const HelperTaskManagement: React.FC<HelperTaskManagementProps> = ({
 
   const canCreateTasks = hasPermission('create_helper_task');
   const canEditTasks = hasPermission('edit_helper_task');
+  const canDeleteTasks = hasPermission('delete_helper_task');
 
   const handleCreateTask = () => {
     if (!currentUser || !canCreateTasks) return;
@@ -123,6 +123,16 @@ export const HelperTaskManagement: React.FC<HelperTaskManagementProps> = ({
       title: "Status aktualisiert",
       description: `"${task?.task}" wurde als ${getStatusLabel(status)} markiert.`,
     });
+  };
+
+  const handleDeleteTask = (taskId: string, taskName: string) => {
+    if (window.confirm(`Möchten Sie den Helfereinsatz "${taskName}" wirklich löschen?`)) {
+      onDeleteTask(taskId);
+      toast({
+        title: "Helfereinsatz gelöscht",
+        description: `"${taskName}" wurde erfolgreich gelöscht.`,
+      });
+    }
   };
 
   const getStatusIcon = (status: HelperTask['status']) => {
@@ -307,7 +317,7 @@ export const HelperTaskManagement: React.FC<HelperTaskManagementProps> = ({
                       <TableHead>Termin</TableHead>
                       <TableHead>Priorität</TableHead>
                       <TableHead>Status</TableHead>
-                      {canEditTasks && <TableHead>Aktionen</TableHead>}
+                      {(canEditTasks || canDeleteTasks) && <TableHead>Aktionen</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -336,10 +346,10 @@ export const HelperTaskManagement: React.FC<HelperTaskManagementProps> = ({
                             </Badge>
                           </div>
                         </TableCell>
-                        {canEditTasks && (
+                        {(canEditTasks || canDeleteTasks) && (
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              {task.status === 'open' && (
+                              {canEditTasks && task.status === 'open' && (
                                 <>
                                   <Button
                                     size="sm"
@@ -359,13 +369,23 @@ export const HelperTaskManagement: React.FC<HelperTaskManagementProps> = ({
                                   </Button>
                                 </>
                               )}
-                              {task.status !== 'open' && (
+                              {canEditTasks && task.status !== 'open' && (
                                 <Button
                                   size="sm"
                                   variant="outline"
                                   onClick={() => handleUpdateTaskStatus(task.id, 'open')}
                                 >
                                   Zurücksetzen
+                                </Button>
+                              )}
+                              {canDeleteTasks && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleDeleteTask(task.id, task.task)}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  <Trash2 className="h-3 w-3" />
                                 </Button>
                               )}
                             </div>

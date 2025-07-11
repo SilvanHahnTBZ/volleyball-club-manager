@@ -6,9 +6,11 @@ import { EventList } from '@/components/EventList';
 import { LoginForm } from '@/components/LoginForm';
 import { UserProfile } from '@/components/UserProfile';
 import { TeamManagement } from '@/components/TeamManagement';
+import { AdminUserManagement } from '@/components/AdminUserManagement';
+import { AdminSetup } from '@/components/AdminSetup';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Volleyball, LogIn, LogOut, User, Users, Calendar as CalendarIcon, Wrench } from 'lucide-react';
+import { Plus, Volleyball, LogIn, LogOut, User, Users, Calendar as CalendarIcon, Wrench, Shield, Settings } from 'lucide-react';
 import { Event, HelperTask } from '@/types';
 import { useUser } from '@/contexts/UserContext';
 import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
@@ -307,7 +309,7 @@ const Index = () => {
       {currentUser ? (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className={`grid w-full ${hasPermission('manage_users') ? 'grid-cols-5' : 'grid-cols-4'}`}>
               <TabsTrigger value="calendar" className="flex items-center gap-2">
                 <CalendarIcon className="h-4 w-4" />
                 Kalender
@@ -326,6 +328,12 @@ const Index = () => {
                 <User className="h-4 w-4" />
                 Mein Kalender
               </TabsTrigger>
+              {hasPermission('manage_users') && (
+                <TabsTrigger value="admin" className="flex items-center gap-2">
+                  <Shield className="h-4 w-4" />
+                  Admin
+                </TabsTrigger>
+              )}
             </TabsList>
 
             <TabsContent value="calendar" className="space-y-0">
@@ -382,6 +390,19 @@ const Index = () => {
                 onEventClick={openViewModal}
               />
             </TabsContent>
+
+            {hasPermission('manage_users') && (
+              <TabsContent value="admin" className="space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                  <div className="lg:col-span-2">
+                    <AdminUserManagement />
+                  </div>
+                  <div className="lg:col-span-1">
+                    <AdminSetup />
+                  </div>
+                </div>
+              </TabsContent>
+            )}
           </Tabs>
         </div>
       ) : (

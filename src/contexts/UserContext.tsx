@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '@/types';
 import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
+import { supabase } from '@/lib/supabase';
 
 interface UserContextType {
   currentUser: User | null;
@@ -14,73 +15,59 @@ interface UserContextType {
   hasPermission: (action: string, targetUserId?: string, teamId?: string) => boolean;
   getUsersByRole: (role: User['role']) => User[];
   searchUsers: (searchTerm: string) => User[];
+  refreshUsers: () => Promise<void>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
-// Mock users für Demo wenn nicht mit Supabase verbunden
-const mockUsers: User[] = [
-  { 
-    id: '1', 
-    name: 'Admin User', 
-    email: 'admin@volleyball.de', 
-    role: 'admin', 
-    teams: [],
-    phone: '+49 123 456789',
-    isActive: true,
-    registrationDate: new Date('2024-01-01')
-  },
-  { 
-    id: '2', 
-    name: 'Max Trainer', 
-    email: 'trainer@volleyball.de', 
-    role: 'trainer', 
-    teams: ['1', '2', '3'],
-    assignedTeams: ['1', '2', '3'],
-    phone: '+49 123 456790',
-    isActive: true,
-    registrationDate: new Date('2024-01-15')
-  },
-  { 
-    id: '3', 
-    name: 'Anna Spieler', 
-    email: 'player@volleyball.de', 
-    role: 'player', 
-    teams: ['1', '3'],
-    dateOfBirth: new Date('2008-05-15'),
-    phone: '+49 123 456791',
-    isActive: true,
-    registrationDate: new Date('2024-02-01')
-  },
-  { 
-    id: '4', 
-    name: 'Lisa Müller', 
-    email: 'lisa@volleyball.de', 
-    role: 'player', 
-    teams: ['2'],
-    dateOfBirth: new Date('2006-08-22'),
-    isActive: true,
-    registrationDate: new Date('2024-02-15')
-  },
-  { 
-    id: '5', 
-    name: 'Peter Schmidt', 
-    email: 'peter@volleyball.de', 
-    role: 'parent', 
-    teams: [],
-    parentOf: ['3', '4'],
-    phone: '+49 123 456792',
-    isActive: true,
-    registrationDate: new Date('2024-02-01')
-  }
-];
-
 export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { profile, signOut } = useSupabaseAuth();
-  const [users, setUsers] = useState<User[]>(mockUsers);
+  const [users, setUsers] = useState<User[]>([]);
 
-  // Use Supabase profile as current user if available, otherwise fallback to mock
+  // Use Supabase profile as current user
   const currentUser = profile || null;
+
+  useEffect(() => {
+    if (currentUser) {
+      refreshUsers();
+    }
+  }, [currentUser]);
+
+  const refreshUsers = async () => {
+    try {
+      console.log('Refreshing users from database...');
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching users:', error);
+        return;
+      }
+
+      const userList: User[] = data?.map(profile => ({
+        id: profile.id,
+        name: profile.name,
+        email: profile.email,
+        role: profile.role,
+        teams: profile.teams || [],
+        assignedTeams: profile.assigned_teams || [],
+        parentOf: profile.parent_of || [],
+        phone: profile.phone,
+        dateOfBirth: profile.date_of_birth ? new Date(profile.date_of_birth) : undefined,
+        profileImage: profile.profile_image,
+        isActive: profile.is_active,
+        registrationDate: new Date(profile.created_at)
+      })) || [];
+
+      setUsers(userList);
+      console.log('Users refreshed:', userList.length);
+    } catch (error) {
+      console.error('Error refreshing users:', error);
+    }
+  };
 
   const loginUser = (email: string, password: string): boolean => {
     // This is now handled by Supabase Auth
@@ -98,30 +85,58 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const registerUser = (userData: Omit<User, 'id' | 'registrationDate' | 'isActive'>): boolean => {
     // This is now handled by Supabase Auth
-    const existingUser = users.find(u => u.email === userData.email);
-    if (existingUser) {
-      return false;
-    }
-
-    const newUser: User = {
-      ...userData,
-      id: Date.now().toString(),
-      registrationDate: new Date(),
-      isActive: true
-    };
-
-    setUsers([...users, newUser]);
     return true;
   };
 
-  const updateUser = (userId: string, updates: Partial<User>) => {
-    setUsers(users.map(user => 
-      user.id === userId ? { ...user, ...updates } : user
-    ));
+  const updateUser = async (userId: string, updates: Partial<User>) => {
+    try {
+      const dbUpdates = {
+        name: updates.name,
+        role: updates.role,
+        teams: updates.teams,
+        assigned_teams: updates.assignedTeams,
+        parent_of: updates.parentOf,
+        phone: updates.phone,
+        date_of_birth: updates.dateOfBirth?.toISOString(),
+        profile_image: updates.profileImage,
+        is_active: updates.isActive,
+        updated_at: new Date().toISOString(),
+      };
+
+      const { error } = await supabase
+        .from('profiles')
+        .update(dbUpdates)
+        .eq('id', userId);
+
+      if (error) {
+        console.error('Error updating user:', error);
+        return;
+      }
+
+      setUsers(users.map(user => 
+        user.id === userId ? { ...user, ...updates } : user
+      ));
+    } catch (error) {
+      console.error('Error updating user:', error);
+    }
   };
 
-  const deleteUser = (userId: string) => {
-    setUsers(users.filter(user => user.id !== userId));
+  const deleteUser = async (userId: string) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_active: false })
+        .eq('id', userId);
+
+      if (error) {
+        console.error('Error deactivating user:', error);
+        return;
+      }
+
+      setUsers(users.filter(user => user.id !== userId));
+    } catch (error) {
+      console.error('Error deleting user:', error);
+    }
   };
 
   const hasPermission = (action: string, targetUserId?: string, teamId?: string): boolean => {
@@ -222,7 +237,8 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       deleteUser,
       hasPermission,
       getUsersByRole,
-      searchUsers
+      searchUsers,
+      refreshUsers
     }}>
       {children}
     </UserContext.Provider>

@@ -35,6 +35,7 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session:', session);
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
@@ -47,6 +48,7 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state change:', event, session);
         setSession(session);
         setUser(session?.user ?? null);
         
@@ -64,6 +66,7 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const fetchProfile = async (userId: string) => {
     try {
+      console.log('Fetching profile for user:', userId);
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -90,6 +93,7 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
           isActive: data.is_active,
           registrationDate: new Date(data.created_at)
         };
+        console.log('Profile loaded:', userProfile);
         setProfile(userProfile);
       }
     } catch (error) {
@@ -100,16 +104,25 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
   };
 
   const signInWithGoogle = async () => {
+    console.log('Starting Google sign in...');
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin,
+        redirectTo: `${window.location.origin}/`,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        }
       },
     });
-    if (error) throw error;
+    if (error) {
+      console.error('Google sign in error:', error);
+      throw error;
+    }
   };
 
   const signInWithEmail = async (email: string, password: string) => {
+    console.log('Signing in with email:', email);
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -118,6 +131,7 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
   };
 
   const signUp = async (email: string, password: string, name: string) => {
+    console.log('Signing up user:', email, name);
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -129,8 +143,9 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
     });
 
     if (!error && data.user) {
+      console.log('Creating profile for user:', data.user.id);
       // Create profile
-      await supabase.from('profiles').insert({
+      const { error: profileError } = await supabase.from('profiles').insert({
         id: data.user.id,
         email,
         name,
@@ -138,12 +153,17 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
         teams: [],
         is_active: true,
       });
+      
+      if (profileError) {
+        console.error('Error creating profile:', profileError);
+      }
     }
 
     return { error };
   };
 
   const signOut = async () => {
+    console.log('Signing out...');
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
   };
@@ -151,6 +171,7 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const updateProfile = async (updates: Partial<User>) => {
     if (!user) return;
 
+    console.log('Updating profile:', updates);
     const dbUpdates = {
       name: updates.name,
       role: updates.role,
@@ -169,7 +190,10 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
       .update(dbUpdates)
       .eq('id', user.id);
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error updating profile:', error);
+      throw error;
+    }
 
     // Update local state
     setProfile(prev => prev ? { ...prev, ...updates } : null);

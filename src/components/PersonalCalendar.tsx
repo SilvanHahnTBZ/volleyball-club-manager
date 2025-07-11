@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Calendar } from '@/components/Calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -29,27 +29,27 @@ export const PersonalCalendar: React.FC<PersonalCalendarProps> = ({
   const { currentUser } = useUser();
   const { getTeamsByUser } = useTeam();
 
-  const userTeams = currentUser ? getTeamsByUser(currentUser.id, currentUser.roles[0]) : [];
+  // Memoize user teams to prevent recalculation
+  const userTeams = useMemo(() => {
+    if (!currentUser) return [];
+    return getTeamsByUser(currentUser.id, currentUser.roles[0]);
+  }, [currentUser?.id, currentUser?.roles, getTeamsByUser]);
 
-  // Filter events based on user role and team assignments
+  // Memoize personal events with proper dependencies
   const personalEvents = useMemo(() => {
     if (!currentUser) return [];
 
     const filteredEvents = events.filter(event => {
-      // Admins see all events
       if (currentUser.roles.includes('admin')) return true;
 
-      // Trainers see events for their assigned teams
       if (currentUser.roles.includes('trainer')) {
         return !event.teamId || userTeams.some(team => team.id === event.teamId);
       }
 
-      // Players see events for their teams
       if (currentUser.roles.includes('player')) {
         return !event.teamId || userTeams.some(team => team.id === event.teamId);
       }
 
-      // Parents see events for their children's teams
       if (currentUser.roles.includes('parent')) {
         return !event.teamId || userTeams.some(team => team.id === event.teamId);
       }
@@ -57,9 +57,10 @@ export const PersonalCalendar: React.FC<PersonalCalendarProps> = ({
       return false;
     });
 
-    // Add helper tasks as events
+    // Add helper tasks as events - limit to prevent memory issues
     const helperEvents: Event[] = helperTasks
       .filter(task => task.assignedTo === currentUser.id || currentUser.roles.includes('admin'))
+      .slice(0, 50) // Limit helper tasks to prevent memory issues
       .map(task => ({
         id: `helper-${task.id}`,
         title: task.task,
@@ -72,20 +73,25 @@ export const PersonalCalendar: React.FC<PersonalCalendarProps> = ({
       }));
 
     return [...filteredEvents, ...helperEvents];
-  }, [events, helperTasks, currentUser, userTeams]);
+  }, [events, helperTasks, currentUser?.id, currentUser?.roles, userTeams]);
 
-  // Filter events for upcoming list
-  const upcomingEvents = personalEvents
-    .filter(event => event.date >= new Date())
-    .sort((a, b) => a.date.getTime() - b.date.getTime())
-    .slice(0, 10);
+  // Memoize upcoming events with limit
+  const upcomingEvents = useMemo(() => {
+    const now = new Date();
+    return personalEvents
+      .filter(event => event.date >= now)
+      .sort((a, b) => a.date.getTime() - b.date.getTime())
+      .slice(0, 10); // Limit to 10 events
+  }, [personalEvents]);
 
-  // Get events for selected date
-  const dayEvents = personalEvents.filter(event => 
-    event.date.toDateString() === selectedDate.toDateString()
-  );
+  // Memoize day events
+  const dayEvents = useMemo(() => {
+    return personalEvents.filter(event => 
+      event.date.toDateString() === selectedDate.toDateString()
+    );
+  }, [personalEvents, selectedDate]);
 
-  const getEventTypeIcon = (type: Event['type']) => {
+  const getEventTypeIcon = useCallback((type: Event['type']) => {
     switch (type) {
       case 'training':
         return <Users className="h-4 w-4" />;
@@ -98,9 +104,9 @@ export const PersonalCalendar: React.FC<PersonalCalendarProps> = ({
       default:
         return <CalendarIcon className="h-4 w-4" />;
     }
-  };
+  }, []);
 
-  const getEventTypeLabel = (type: Event['type']) => {
+  const getEventTypeLabel = useCallback((type: Event['type']) => {
     switch (type) {
       case 'training':
         return 'Training';
@@ -113,9 +119,9 @@ export const PersonalCalendar: React.FC<PersonalCalendarProps> = ({
       default:
         return 'Event';
     }
-  };
+  }, []);
 
-  const getHelperTaskStatusBadge = (task?: HelperTask) => {
+  const getHelperTaskStatusBadge = useCallback((task?: HelperTask) => {
     if (!task) return null;
     
     switch (task.status) {
@@ -126,7 +132,7 @@ export const PersonalCalendar: React.FC<PersonalCalendarProps> = ({
       case 'no-show':
         return <Badge variant="destructive">Nicht erschienen</Badge>;
     }
-  };
+  }, []);
 
   if (!currentUser) {
     return (
@@ -167,7 +173,6 @@ export const PersonalCalendar: React.FC<PersonalCalendarProps> = ({
                 </div>
 
                 <div className="space-y-4">
-                  {/* Selected Day Events */}
                   <Card>
                     <CardHeader>
                       <CardTitle className="text-lg">
@@ -182,7 +187,7 @@ export const PersonalCalendar: React.FC<PersonalCalendarProps> = ({
                     <CardContent>
                       {dayEvents.length > 0 ? (
                         <div className="space-y-3">
-                          {dayEvents.map((event) => (
+                          {dayEvents.slice(0, 5).map((event) => ( // Limit to 5 events per day
                             <div
                               key={event.id}
                               className="p-3 border rounded-lg cursor-pointer hover:bg-gray-50"
@@ -208,6 +213,11 @@ export const PersonalCalendar: React.FC<PersonalCalendarProps> = ({
                               )}
                             </div>
                           ))}
+                          {dayEvents.length > 5 && (
+                            <p className="text-sm text-gray-500 text-center">
+                              +{dayEvents.length - 5} weitere Events
+                            </p>
+                          )}
                         </div>
                       ) : (
                         <p className="text-gray-600">Keine Events an diesem Tag</p>
@@ -215,7 +225,6 @@ export const PersonalCalendar: React.FC<PersonalCalendarProps> = ({
                     </CardContent>
                   </Card>
 
-                  {/* Team Info */}
                   <Card>
                     <CardHeader>
                       <CardTitle className="text-lg">Meine Teams</CardTitle>
@@ -223,7 +232,7 @@ export const PersonalCalendar: React.FC<PersonalCalendarProps> = ({
                     <CardContent>
                       {userTeams.length > 0 ? (
                         <div className="space-y-2">
-                          {userTeams.map((team) => (
+                          {userTeams.slice(0, 5).map((team) => ( // Limit teams display
                             <div key={team.id} className="flex items-center justify-between">
                               <span className="font-medium">{team.name}</span>
                               <Badge variant="outline">{team.season}</Badge>

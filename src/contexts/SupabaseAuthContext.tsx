@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { User } from '@/types';
@@ -31,39 +32,7 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [profile, setProfile] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('Initial session:', session);
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id);
-      } else {
-        setLoading(false);
-      }
-    });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth state change:', event, session);
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          await fetchProfile(session.user.id);
-        } else {
-          setProfile(null);
-          setLoading(false);
-        }
-      }
-    );
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = useCallback(async (userId: string) => {
     try {
       console.log('Fetching profile for user:', userId);
       const { data, error } = await supabase
@@ -82,7 +51,7 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
           id: data.id,
           name: data.name,
           email: data.email,
-          roles: data.roles || ['player'], // Handle array of roles
+          roles: Array.isArray(data.roles) ? data.roles : ['player'],
           teams: data.teams || [],
           assignedTeams: data.assigned_teams || [],
           parentOf: data.parent_of || [],
@@ -97,12 +66,63 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
-    } finally {
-      setLoading(false);
     }
-  };
+  }, []);
 
-  const signInWithGoogle = async () => {
+  useEffect(() => {
+    let mounted = true;
+    
+    // Get initial session - only once
+    const initializeAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        console.log('Initial session:', session);
+        
+        if (!mounted) return;
+        
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          await fetchProfile(session.user.id);
+        }
+      } catch (error) {
+        console.error('Error initializing auth:', error);
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    initializeAuth();
+
+    // Listen for auth changes - with proper cleanup
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (!mounted) return;
+        
+        console.log('Auth state change:', event, session);
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          await fetchProfile(session.user.id);
+        } else {
+          setProfile(null);
+        }
+        
+        setLoading(false);
+      }
+    );
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, []); // Empty dependency array - run only once
+
+  const signInWithGoogle = useCallback(async () => {
     console.log('Starting Google sign in...');
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -118,18 +138,18 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
       console.error('Google sign in error:', error);
       throw error;
     }
-  };
+  }, []);
 
-  const signInWithEmail = async (email: string, password: string) => {
+  const signInWithEmail = useCallback(async (email: string, password: string) => {
     console.log('Signing in with email:', email);
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
     return { error };
-  };
+  }, []);
 
-  const signUp = async (email: string, password: string, name: string) => {
+  const signUp = useCallback(async (email: string, password: string, name: string) => {
     console.log('Signing up user:', email, name);
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -143,12 +163,11 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
     if (!error && data.user) {
       console.log('Creating profile for user:', data.user.id);
-      // Create profile
       const { error: profileError } = await supabase.from('profiles').insert({
         id: data.user.id,
         email,
         name,
-        roles: ['player'], // Default to player role
+        roles: ['player'],
         teams: [],
         is_active: true,
       });
@@ -159,21 +178,22 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
 
     return { error };
-  };
+  }, []);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     console.log('Signing out...');
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
-  };
+    setProfile(null);
+  }, []);
 
-  const updateProfile = async (updates: Partial<User>) => {
+  const updateProfile = useCallback(async (updates: Partial<User>) => {
     if (!user) return;
 
     console.log('Updating profile:', updates);
     const dbUpdates = {
       name: updates.name,
-      roles: updates.roles, // Handle array of roles
+      roles: updates.roles,
       teams: updates.teams,
       assigned_teams: updates.assignedTeams,
       parent_of: updates.parentOf,
@@ -194,9 +214,8 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
       throw error;
     }
 
-    // Update local state
     setProfile(prev => prev ? { ...prev, ...updates } : null);
-  };
+  }, [user]);
 
   const value = {
     user,

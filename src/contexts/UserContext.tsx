@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { User } from '@/types';
 import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/supabase';
@@ -22,17 +23,14 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { profile, signOut } = useSupabaseAuth();
   const [users, setUsers] = useState<User[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Use Supabase profile as current user
   const currentUser = profile || null;
 
-  useEffect(() => {
-    if (currentUser) {
-      refreshUsers();
-    }
-  }, [currentUser]);
-
-  const refreshUsers = async () => {
+  const refreshUsers = useCallback(async () => {
+    if (isRefreshing) return; // Prevent multiple simultaneous calls
+    
+    setIsRefreshing(true);
     try {
       console.log('Refreshing users from database...');
       const { data, error } = await supabase
@@ -50,7 +48,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         id: profile.id,
         name: profile.name,
         email: profile.email,
-        roles: profile.roles || ['player'], // Handle array of roles
+        roles: Array.isArray(profile.roles) ? profile.roles : ['player'],
         teams: profile.teams || [],
         assignedTeams: profile.assigned_teams || [],
         parentOf: profile.parent_of || [],
@@ -65,33 +63,40 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       console.log('Users refreshed:', userList.length);
     } catch (error) {
       console.error('Error refreshing users:', error);
+    } finally {
+      setIsRefreshing(false);
     }
-  };
+  }, [isRefreshing]);
 
-  const loginUser = (email: string, password: string): boolean => {
-    // This is now handled by Supabase Auth
+  // Only refresh users when currentUser changes and exists
+  useEffect(() => {
+    if (currentUser && !isRefreshing) {
+      refreshUsers();
+    }
+  }, [currentUser?.id]); // Only depend on user ID to prevent unnecessary calls
+
+  const loginUser = useCallback((email: string, password: string): boolean => {
     const user = users.find(u => u.email === email && u.isActive);
     return !!user;
-  };
+  }, [users]);
 
-  const logoutUser = async () => {
+  const logoutUser = useCallback(async () => {
     try {
       await signOut();
     } catch (error) {
       console.error('Error signing out:', error);
     }
-  };
+  }, [signOut]);
 
-  const registerUser = (userData: Omit<User, 'id' | 'registrationDate' | 'isActive'>): boolean => {
-    // This is now handled by Supabase Auth
+  const registerUser = useCallback((userData: Omit<User, 'id' | 'registrationDate' | 'isActive'>): boolean => {
     return true;
-  };
+  }, []);
 
-  const updateUser = async (userId: string, updates: Partial<User>) => {
+  const updateUser = useCallback(async (userId: string, updates: Partial<User>) => {
     try {
       const dbUpdates = {
         name: updates.name,
-        roles: updates.roles, // Updated to handle roles array
+        roles: updates.roles,
         teams: updates.teams,
         assigned_teams: updates.assignedTeams,
         parent_of: updates.parentOf,
@@ -118,9 +123,9 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } catch (error) {
       console.error('Error updating user:', error);
     }
-  };
+  }, [users]);
 
-  const deleteUser = async (userId: string) => {
+  const deleteUser = useCallback(async (userId: string) => {
     try {
       const { error } = await supabase
         .from('profiles')
@@ -136,9 +141,9 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } catch (error) {
       console.error('Error deleting user:', error);
     }
-  };
+  }, [users]);
 
-  const hasPermission = (action: string, targetUserId?: string, teamId?: string): boolean => {
+  const hasPermission = useCallback((action: string, targetUserId?: string, teamId?: string): boolean => {
     if (!currentUser || !currentUser.isActive) return false;
     
     const userRoles = currentUser.roles || [];
@@ -146,22 +151,16 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     switch (action) {
       case 'create_event':
         return userRoles.includes('admin') || userRoles.includes('trainer');
-        
       case 'edit_event':
         return userRoles.includes('admin') || userRoles.includes('trainer');
-        
       case 'delete_event':
         return userRoles.includes('admin');
-        
       case 'manage_users':
         return userRoles.includes('admin');
-        
       case 'manage_teams':
         return userRoles.includes('admin') || userRoles.includes('trainer');
-        
       case 'join_event':
         return userRoles.includes('player') || userRoles.includes('trainer') || userRoles.includes('admin');
-        
       case 'view_profiles':
         if (userRoles.includes('admin')) return true;
         if (userRoles.includes('trainer') && targetUserId) {
@@ -173,7 +172,6 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                  (userRoles.includes('parent') && currentUser.parentOf?.includes(targetUserId));
         }
         return true;
-        
       case 'view_helper_tasks':
         if (userRoles.includes('admin')) return true;
         if (userRoles.includes('trainer')) return true;
@@ -182,16 +180,12 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                  (userRoles.includes('parent') && currentUser.parentOf?.includes(targetUserId));
         }
         return false;
-        
       case 'create_helper_task':
         return userRoles.includes('admin') || userRoles.includes('trainer');
-        
       case 'edit_helper_task':
         return userRoles.includes('admin') || userRoles.includes('trainer');
-        
       case 'delete_helper_task':
         return userRoles.includes('admin');
-        
       case 'view_team_events':
         if (userRoles.includes('admin')) return true;
         if (userRoles.includes('trainer') && teamId) {
@@ -207,20 +201,18 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           return childrenInTeam.length > 0;
         }
         return false;
-        
       case 'assign_teams':
         return userRoles.includes('admin');
-        
       default:
         return false;
     }
-  };
+  }, [currentUser, users]);
 
-  const getUsersByRole = (role: User['roles'][0]): User[] => {
+  const getUsersByRole = useCallback((role: User['roles'][0]): User[] => {
     return users.filter(user => user.roles.includes(role) && user.isActive);
-  };
+  }, [users]);
 
-  const searchUsers = (searchTerm: string): User[] => {
+  const searchUsers = useCallback((searchTerm: string): User[] => {
     const term = searchTerm.toLowerCase();
     return users.filter(user => 
       user.isActive && (
@@ -228,7 +220,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         user.email.toLowerCase().includes(term)
       )
     );
-  };
+  }, [users]);
 
   return (
     <UserContext.Provider value={{

@@ -11,11 +11,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Volleyball, LogIn, LogOut, User, Users, Calendar as CalendarIcon, Wrench } from 'lucide-react';
 import { Event, HelperTask } from '@/types';
 import { useUser } from '@/contexts/UserContext';
+import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
 import { useTeam } from '@/contexts/TeamContext';
 import { toast } from '@/hooks/use-toast';
 
 const Index = () => {
   const { currentUser, hasPermission, logoutUser } = useUser();
+  const { loading } = useSupabaseAuth();
   const { getTeamsByUser } = useTeam();
   
   const [events, setEvents] = useState<Event[]>([
@@ -175,8 +177,8 @@ const Index = () => {
     setIsModalOpen(true);
   };
 
-  const handleLogout = () => {
-    logoutUser();
+  const handleLogout = async () => {
+    await logoutUser();
     toast({
       title: "Abgemeldet",
       description: "Sie wurden erfolgreich abgemeldet.",
@@ -217,13 +219,23 @@ const Index = () => {
     }
     
     if (currentUser.role === 'parent') {
-      // Parents see events for teams their children are in
       const userTeams = getTeamsByUser(currentUser.id, currentUser.role);
       return event.teamId ? userTeams.some(team => team.id === event.teamId) : true;
     }
     
     return true;
   }) : events;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-orange-50 flex items-center justify-center">
+        <div className="text-center">
+          <Volleyball className="h-12 w-12 mx-auto mb-4 text-orange-500 animate-spin" />
+          <p className="text-gray-600">Wird geladen...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-orange-50">
@@ -318,7 +330,6 @@ const Index = () => {
 
             <TabsContent value="calendar" className="space-y-0">
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Calendar */}
                 <div className="lg:col-span-2">
                   <div className="bg-white rounded-xl shadow-lg p-6">
                     <PersonalCalendar
@@ -332,7 +343,6 @@ const Index = () => {
                   </div>
                 </div>
 
-                {/* Event List */}
                 <div className="lg:col-span-1">
                   <div className="bg-white rounded-xl shadow-lg p-6">
                     <h2 className="text-lg font-semibold text-gray-900 mb-4">Kommende Events</h2>

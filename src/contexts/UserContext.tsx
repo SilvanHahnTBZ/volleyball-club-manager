@@ -1,6 +1,7 @@
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '@/types';
+import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
 
 interface UserContextType {
   currentUser: User | null;
@@ -17,7 +18,7 @@ interface UserContextType {
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
-// Erweiterte Mock-Benutzer für Demo
+// Mock users für Demo wenn nicht mit Supabase verbunden
 const mockUsers: User[] = [
   { 
     id: '1', 
@@ -75,26 +76,31 @@ const mockUsers: User[] = [
 ];
 
 export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<User | null>(mockUsers[0]);
+  const { profile, signOut } = useSupabaseAuth();
   const [users, setUsers] = useState<User[]>(mockUsers);
 
+  // Use Supabase profile as current user if available, otherwise fallback to mock
+  const currentUser = profile || null;
+
   const loginUser = (email: string, password: string): boolean => {
+    // This is now handled by Supabase Auth
     const user = users.find(u => u.email === email && u.isActive);
-    if (user) {
-      setCurrentUser(user);
-      return true;
-    }
-    return false;
+    return !!user;
   };
 
-  const logoutUser = () => {
-    setCurrentUser(null);
+  const logoutUser = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
   };
 
   const registerUser = (userData: Omit<User, 'id' | 'registrationDate' | 'isActive'>): boolean => {
+    // This is now handled by Supabase Auth
     const existingUser = users.find(u => u.email === userData.email);
     if (existingUser) {
-      return false; // User already exists
+      return false;
     }
 
     const newUser: User = {
@@ -112,20 +118,10 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setUsers(users.map(user => 
       user.id === userId ? { ...user, ...updates } : user
     ));
-    
-    // Update current user if it's the same user
-    if (currentUser?.id === userId) {
-      setCurrentUser({ ...currentUser, ...updates });
-    }
   };
 
   const deleteUser = (userId: string) => {
     setUsers(users.filter(user => user.id !== userId));
-    
-    // Logout if current user is deleted
-    if (currentUser?.id === userId) {
-      setCurrentUser(null);
-    }
   };
 
   const hasPermission = (action: string, targetUserId?: string, teamId?: string): boolean => {
@@ -153,12 +149,10 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       case 'view_profiles':
         if (currentUser.role === 'admin') return true;
         if (currentUser.role === 'trainer' && targetUserId) {
-          // Trainer kann Profile von Spielern in seinen Teams sehen
           const targetUser = users.find(u => u.id === targetUserId);
           return targetUser ? targetUser.teams.some(t => currentUser.assignedTeams?.includes(t)) : false;
         }
         if (targetUserId) {
-          // Eigenes Profil oder bei Eltern: Kinder-Profile
           return currentUser.id === targetUserId || 
                  (currentUser.role === 'parent' && currentUser.parentOf?.includes(targetUserId));
         }
@@ -168,7 +162,6 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (currentUser.role === 'admin') return true;
         if (currentUser.role === 'trainer') return true;
         if (targetUserId) {
-          // Nur eigene Helfereinsätze oder bei Eltern: die der Kinder
           return currentUser.id === targetUserId || 
                  (currentUser.role === 'parent' && currentUser.parentOf?.includes(targetUserId));
         }
@@ -189,7 +182,6 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           return currentUser.teams.includes(teamId);
         }
         if (currentUser.role === 'parent' && teamId) {
-          // Eltern sehen Events der Teams ihrer Kinder
           const childrenInTeam = users.filter(u => 
             currentUser.parentOf?.includes(u.id) && u.teams.includes(teamId)
           );

@@ -1,10 +1,10 @@
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Calendar } from '@/components/Calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Event, HelperTask, User } from '@/types';
+import { Event, HelperTask } from '@/types';
 import { useUser } from '@/contexts/UserContext';
 import { useTeam } from '@/contexts/TeamContext';
 import { Calendar as CalendarIcon, Users, Wrench, Trophy } from 'lucide-react';
@@ -29,69 +29,66 @@ export const PersonalCalendar: React.FC<PersonalCalendarProps> = ({
   const { currentUser } = useUser();
   const { getTeamsByUser } = useTeam();
 
-  // Memoize user teams to prevent recalculation
+  // Simple memoization without complex dependencies
   const userTeams = useMemo(() => {
     if (!currentUser) return [];
-    return getTeamsByUser(currentUser.id, currentUser.roles[0]);
-  }, [currentUser?.id, currentUser?.roles, getTeamsByUser]);
+    try {
+      return getTeamsByUser(currentUser.id, currentUser.roles[0]).slice(0, 10); // Limit teams
+    } catch (error) {
+      console.error('Error getting user teams:', error);
+      return [];
+    }
+  }, [currentUser?.id, currentUser?.roles?.[0]]);
 
-  // Memoize personal events with proper dependencies
   const personalEvents = useMemo(() => {
     if (!currentUser) return [];
 
-    const filteredEvents = events.filter(event => {
-      if (currentUser.roles.includes('admin')) return true;
+    try {
+      const filteredEvents = events.filter(event => {
+        if (currentUser.roles.includes('admin')) return true;
+        if (currentUser.roles.includes('trainer') || currentUser.roles.includes('player') || currentUser.roles.includes('parent')) {
+          return !event.teamId || userTeams.some(team => team.id === event.teamId);
+        }
+        return false;
+      }).slice(0, 50); // Limit events
 
-      if (currentUser.roles.includes('trainer')) {
-        return !event.teamId || userTeams.some(team => team.id === event.teamId);
-      }
+      // Add helper tasks as events - limited
+      const helperEvents: Event[] = helperTasks
+        .filter(task => task.assignedTo === currentUser.id || currentUser.roles.includes('admin'))
+        .slice(0, 20) // Limit helper tasks
+        .map(task => ({
+          id: `helper-${task.id}`,
+          title: task.task,
+          date: task.assignedDate,
+          type: 'helper' as const,
+          description: task.description,
+          participants: [],
+          createdBy: task.createdBy,
+          helperTask: task
+        }));
 
-      if (currentUser.roles.includes('player')) {
-        return !event.teamId || userTeams.some(team => team.id === event.teamId);
-      }
-
-      if (currentUser.roles.includes('parent')) {
-        return !event.teamId || userTeams.some(team => team.id === event.teamId);
-      }
-
-      return false;
-    });
-
-    // Add helper tasks as events - limit to prevent memory issues
-    const helperEvents: Event[] = helperTasks
-      .filter(task => task.assignedTo === currentUser.id || currentUser.roles.includes('admin'))
-      .slice(0, 50) // Limit helper tasks to prevent memory issues
-      .map(task => ({
-        id: `helper-${task.id}`,
-        title: task.task,
-        date: task.assignedDate,
-        type: 'helper' as const,
-        description: task.description,
-        participants: [],
-        createdBy: task.createdBy,
-        helperTask: task
-      }));
-
-    return [...filteredEvents, ...helperEvents];
+      return [...filteredEvents, ...helperEvents];
+    } catch (error) {
+      console.error('Error filtering personal events:', error);
+      return [];
+    }
   }, [events, helperTasks, currentUser?.id, currentUser?.roles, userTeams]);
 
-  // Memoize upcoming events with limit
   const upcomingEvents = useMemo(() => {
     const now = new Date();
     return personalEvents
       .filter(event => event.date >= now)
       .sort((a, b) => a.date.getTime() - b.date.getTime())
-      .slice(0, 10); // Limit to 10 events
+      .slice(0, 10); // Limit upcoming events
   }, [personalEvents]);
 
-  // Memoize day events
   const dayEvents = useMemo(() => {
     return personalEvents.filter(event => 
       event.date.toDateString() === selectedDate.toDateString()
-    );
+    ).slice(0, 10); // Limit day events
   }, [personalEvents, selectedDate]);
 
-  const getEventTypeIcon = useCallback((type: Event['type']) => {
+  const getEventTypeIcon = (type: Event['type']) => {
     switch (type) {
       case 'training':
         return <Users className="h-4 w-4" />;
@@ -104,9 +101,9 @@ export const PersonalCalendar: React.FC<PersonalCalendarProps> = ({
       default:
         return <CalendarIcon className="h-4 w-4" />;
     }
-  }, []);
+  };
 
-  const getEventTypeLabel = useCallback((type: Event['type']) => {
+  const getEventTypeLabel = (type: Event['type']) => {
     switch (type) {
       case 'training':
         return 'Training';
@@ -119,9 +116,9 @@ export const PersonalCalendar: React.FC<PersonalCalendarProps> = ({
       default:
         return 'Event';
     }
-  }, []);
+  };
 
-  const getHelperTaskStatusBadge = useCallback((task?: HelperTask) => {
+  const getHelperTaskStatusBadge = (task?: HelperTask) => {
     if (!task) return null;
     
     switch (task.status) {
@@ -132,7 +129,7 @@ export const PersonalCalendar: React.FC<PersonalCalendarProps> = ({
       case 'no-show':
         return <Badge variant="destructive">Nicht erschienen</Badge>;
     }
-  }, []);
+  };
 
   if (!currentUser) {
     return (
@@ -187,7 +184,7 @@ export const PersonalCalendar: React.FC<PersonalCalendarProps> = ({
                     <CardContent>
                       {dayEvents.length > 0 ? (
                         <div className="space-y-3">
-                          {dayEvents.slice(0, 5).map((event) => ( // Limit to 5 events per day
+                          {dayEvents.map((event) => (
                             <div
                               key={event.id}
                               className="p-3 border rounded-lg cursor-pointer hover:bg-gray-50"
@@ -213,11 +210,6 @@ export const PersonalCalendar: React.FC<PersonalCalendarProps> = ({
                               )}
                             </div>
                           ))}
-                          {dayEvents.length > 5 && (
-                            <p className="text-sm text-gray-500 text-center">
-                              +{dayEvents.length - 5} weitere Events
-                            </p>
-                          )}
                         </div>
                       ) : (
                         <p className="text-gray-600">Keine Events an diesem Tag</p>
@@ -232,7 +224,7 @@ export const PersonalCalendar: React.FC<PersonalCalendarProps> = ({
                     <CardContent>
                       {userTeams.length > 0 ? (
                         <div className="space-y-2">
-                          {userTeams.slice(0, 5).map((team) => ( // Limit teams display
+                          {userTeams.map((team) => (
                             <div key={team.id} className="flex items-center justify-between">
                               <span className="font-medium">{team.name}</span>
                               <Badge variant="outline">{team.season}</Badge>

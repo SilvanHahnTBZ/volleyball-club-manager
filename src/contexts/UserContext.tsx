@@ -1,5 +1,4 @@
-
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '@/types';
 import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/supabase';
@@ -23,21 +22,22 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { profile, signOut } = useSupabaseAuth();
   const [users, setUsers] = useState<User[]>([]);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const currentUser = profile || null;
 
-  const refreshUsers = useCallback(async () => {
-    if (isRefreshing) return; // Prevent multiple simultaneous calls
+  // Simple users refresh without complex dependencies
+  const refreshUsers = async () => {
+    if (loading) return;
     
-    setIsRefreshing(true);
+    setLoading(true);
     try {
-      console.log('Refreshing users from database...');
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('is_active', true)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(100); // Limit to prevent memory issues
 
       if (error) {
         console.error('Error fetching users:', error);
@@ -60,39 +60,38 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       })) || [];
 
       setUsers(userList);
-      console.log('Users refreshed:', userList.length);
     } catch (error) {
       console.error('Error refreshing users:', error);
     } finally {
-      setIsRefreshing(false);
+      setLoading(false);
     }
-  }, [isRefreshing]);
+  };
 
-  // Only refresh users when currentUser changes and exists
+  // Only refresh when user changes
   useEffect(() => {
-    if (currentUser && !isRefreshing) {
+    if (currentUser) {
       refreshUsers();
     }
-  }, [currentUser?.id]); // Only depend on user ID to prevent unnecessary calls
+  }, [currentUser?.id]);
 
-  const loginUser = useCallback((email: string, password: string): boolean => {
+  const loginUser = (email: string, password: string): boolean => {
     const user = users.find(u => u.email === email && u.isActive);
     return !!user;
-  }, [users]);
+  };
 
-  const logoutUser = useCallback(async () => {
+  const logoutUser = async () => {
     try {
       await signOut();
     } catch (error) {
       console.error('Error signing out:', error);
     }
-  }, [signOut]);
+  };
 
-  const registerUser = useCallback((userData: Omit<User, 'id' | 'registrationDate' | 'isActive'>): boolean => {
+  const registerUser = (userData: Omit<User, 'id' | 'registrationDate' | 'isActive'>): boolean => {
     return true;
-  }, []);
+  };
 
-  const updateUser = useCallback(async (userId: string, updates: Partial<User>) => {
+  const updateUser = async (userId: string, updates: Partial<User>) => {
     try {
       const dbUpdates = {
         name: updates.name,
@@ -123,9 +122,9 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } catch (error) {
       console.error('Error updating user:', error);
     }
-  }, [users]);
+  };
 
-  const deleteUser = useCallback(async (userId: string) => {
+  const deleteUser = async (userId: string) => {
     try {
       const { error } = await supabase
         .from('profiles')
@@ -141,9 +140,9 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } catch (error) {
       console.error('Error deleting user:', error);
     }
-  }, [users]);
+  };
 
-  const hasPermission = useCallback((action: string, targetUserId?: string, teamId?: string): boolean => {
+  const hasPermission = (action: string, targetUserId?: string, teamId?: string): boolean => {
     if (!currentUser || !currentUser.isActive) return false;
     
     const userRoles = currentUser.roles || [];
@@ -206,13 +205,13 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       default:
         return false;
     }
-  }, [currentUser, users]);
+  };
 
-  const getUsersByRole = useCallback((role: User['roles'][0]): User[] => {
+  const getUsersByRole = (role: User['roles'][0]): User[] => {
     return users.filter(user => user.roles.includes(role) && user.isActive);
-  }, [users]);
+  };
 
-  const searchUsers = useCallback((searchTerm: string): User[] => {
+  const searchUsers = (searchTerm: string): User[] => {
     const term = searchTerm.toLowerCase();
     return users.filter(user => 
       user.isActive && (
@@ -220,7 +219,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         user.email.toLowerCase().includes(term)
       )
     );
-  }, [users]);
+  };
 
   return (
     <UserContext.Provider value={{

@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { User } from '@/types';
@@ -32,9 +32,9 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [profile, setProfile] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = useCallback(async (userId: string) => {
+  // Simple profile fetch without complex dependencies
+  const fetchProfile = async (userId: string) => {
     try {
-      console.log('Fetching profile for user:', userId);
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -61,24 +61,22 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
           isActive: data.is_active,
           registrationDate: new Date(data.created_at)
         };
-        console.log('Profile loaded:', userProfile);
         setProfile(userProfile);
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
     }
-  }, []);
+  };
 
+  // Initialize auth state once
   useEffect(() => {
-    let mounted = true;
-    
-    // Get initial session - only once
-    const initializeAuth = async () => {
+    let isMounted = true;
+
+    const initAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        console.log('Initial session:', session);
         
-        if (!mounted) return;
+        if (!isMounted) return;
         
         setSession(session);
         setUser(session?.user ?? null);
@@ -89,20 +87,19 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
       } catch (error) {
         console.error('Error initializing auth:', error);
       } finally {
-        if (mounted) {
+        if (isMounted) {
           setLoading(false);
         }
       }
     };
 
-    initializeAuth();
+    initAuth();
 
-    // Listen for auth changes - with proper cleanup
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (!mounted) return;
+        if (!isMounted) return;
         
-        console.log('Auth state change:', event, session);
+        console.log('Auth state change:', event);
         setSession(session);
         setUser(session?.user ?? null);
         
@@ -117,52 +114,39 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
     );
 
     return () => {
-      mounted = false;
+      isMounted = false;
       subscription.unsubscribe();
     };
   }, []); // Empty dependency array - run only once
 
-  const signInWithGoogle = useCallback(async () => {
-    console.log('Starting Google sign in...');
+  const signInWithGoogle = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo: `${window.location.origin}/`,
-        queryParams: {
-          access_type: 'offline',
-          prompt: 'consent',
-        }
       },
     });
-    if (error) {
-      console.error('Google sign in error:', error);
-      throw error;
-    }
-  }, []);
+    if (error) throw error;
+  };
 
-  const signInWithEmail = useCallback(async (email: string, password: string) => {
-    console.log('Signing in with email:', email);
+  const signInWithEmail = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
     return { error };
-  }, []);
+  };
 
-  const signUp = useCallback(async (email: string, password: string, name: string) => {
-    console.log('Signing up user:', email, name);
+  const signUp = async (email: string, password: string, name: string) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: {
-          name,
-        },
+        data: { name },
       },
     });
 
     if (!error && data.user) {
-      console.log('Creating profile for user:', data.user.id);
       const { error: profileError } = await supabase.from('profiles').insert({
         id: data.user.id,
         email,
@@ -178,19 +162,17 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
 
     return { error };
-  }, []);
+  };
 
-  const signOut = useCallback(async () => {
-    console.log('Signing out...');
+  const signOut = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
     setProfile(null);
-  }, []);
+  };
 
-  const updateProfile = useCallback(async (updates: Partial<User>) => {
+  const updateProfile = async (updates: Partial<User>) => {
     if (!user) return;
 
-    console.log('Updating profile:', updates);
     const dbUpdates = {
       name: updates.name,
       roles: updates.roles,
@@ -215,7 +197,7 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
 
     setProfile(prev => prev ? { ...prev, ...updates } : null);
-  }, [user]);
+  };
 
   const value = {
     user,

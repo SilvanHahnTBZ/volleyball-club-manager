@@ -15,6 +15,9 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
+// Google Maps API Key
+const GOOGLE_MAPS_API_KEY = 'AIzaSyD6hEWCQUTOiqcFHv36vgFJAlg3cYpwwos';
+
 interface LocationMapProps {
   location: string;
   title?: string;
@@ -45,7 +48,7 @@ export const LocationMap: React.FC<LocationMapProps> = ({
   };
 
   const coordinates = getCoordinates(location);
-  const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
+  const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}&key=${GOOGLE_MAPS_API_KEY}`;
 
   if (!showMap) {
     return (

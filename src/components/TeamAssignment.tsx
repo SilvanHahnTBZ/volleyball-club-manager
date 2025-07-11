@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -29,11 +28,11 @@ export const TeamAssignment: React.FC<TeamAssignmentProps> = ({ isOpen, onClose,
 
   const availableUsers = users.filter(user => {
     if (activeTab === 'players') {
-      return (user.role === 'player' || user.role === 'parent') && 
+      return (user.roles.includes('player') || user.roles.includes('parent')) && 
              !team.players.includes(user.id) &&
              user.name.toLowerCase().includes(searchTerm.toLowerCase());
     } else {
-      return (user.role === 'trainer' || user.role === 'admin') && 
+      return (user.roles.includes('trainer') || user.roles.includes('admin')) && 
              !team.trainers.includes(user.id) &&
              user.name.toLowerCase().includes(searchTerm.toLowerCase());
     }
@@ -75,14 +74,17 @@ export const TeamAssignment: React.FC<TeamAssignmentProps> = ({ isOpen, onClose,
     }
   };
 
-  const getRoleLabel = (role: string) => {
-    switch (role) {
-      case 'admin': return 'Administrator';
-      case 'trainer': return 'Trainer';
-      case 'player': return 'Spieler';
-      case 'parent': return 'Elternteil';
-      default: return role;
-    }
+  const getRoleLabel = (roles: string[]) => {
+    const roleLabels = roles.map(role => {
+      switch (role) {
+        case 'admin': return 'Administrator';
+        case 'trainer': return 'Trainer';
+        case 'player': return 'Spieler';
+        case 'parent': return 'Elternteil';
+        default: return role;
+      }
+    });
+    return roleLabels.join(', ');
   };
 
   return (
@@ -142,7 +144,7 @@ export const TeamAssignment: React.FC<TeamAssignmentProps> = ({ isOpen, onClose,
                       </Avatar>
                       <div>
                         <div className="font-medium text-sm">{user.name}</div>
-                        <div className="text-xs text-gray-500">{getRoleLabel(user.role)}</div>
+                        <div className="text-xs text-gray-500">{getRoleLabel(user.roles)}</div>
                       </div>
                       {team.captain === user.id && (
                         <Crown className="h-4 w-4 text-yellow-500" />
@@ -182,7 +184,7 @@ export const TeamAssignment: React.FC<TeamAssignmentProps> = ({ isOpen, onClose,
                       </Avatar>
                       <div>
                         <div className="font-medium text-sm">{user.name}</div>
-                        <div className="text-xs text-gray-500">{getRoleLabel(user.role)}</div>
+                        <div className="text-xs text-gray-500">{getRoleLabel(user.roles)}</div>
                       </div>
                     </div>
                     <Button

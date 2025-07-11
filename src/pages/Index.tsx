@@ -187,41 +187,42 @@ const Index = () => {
     });
   };
 
-  const getRoleColor = (role: string) => {
-    switch (role) {
-      case 'admin': return 'text-red-600';
-      case 'trainer': return 'text-blue-600';
-      case 'player': return 'text-green-600';
-      case 'parent': return 'text-purple-600';
-      default: return 'text-gray-600';
-    }
+  const getRoleColor = (roles: string[]) => {
+    if (roles.includes('admin')) return 'text-red-600';
+    if (roles.includes('trainer')) return 'text-blue-600';
+    if (roles.includes('player')) return 'text-green-600';
+    if (roles.includes('parent')) return 'text-purple-600';
+    return 'text-gray-600';
   };
 
-  const getRoleLabel = (role: string) => {
-    switch (role) {
-      case 'admin': return 'Administrator';
-      case 'trainer': return 'Trainer';
-      case 'player': return 'Spieler';
-      case 'parent': return 'Elternteil';
-      default: return role;
-    }
+  const getRoleLabel = (roles: string[]) => {
+    const roleLabels = roles.map(role => {
+      switch (role) {
+        case 'admin': return 'Administrator';
+        case 'trainer': return 'Trainer';
+        case 'player': return 'Spieler';
+        case 'parent': return 'Elternteil';
+        default: return role;
+      }
+    });
+    return roleLabels.join(', ');
   };
 
   const userEvents = currentUser ? events.filter(event => {
-    if (currentUser.role === 'admin') return true;
+    if (currentUser.roles.includes('admin')) return true;
     
-    if (currentUser.role === 'trainer') {
-      const userTeams = getTeamsByUser(currentUser.id, currentUser.role);
+    if (currentUser.roles.includes('trainer')) {
+      const userTeams = getTeamsByUser(currentUser.id, currentUser.roles[0]);
       return event.teamId ? userTeams.some(team => team.id === event.teamId) : true;
     }
     
-    if (currentUser.role === 'player') {
-      const userTeams = getTeamsByUser(currentUser.id, currentUser.role);
+    if (currentUser.roles.includes('player')) {
+      const userTeams = getTeamsByUser(currentUser.id, currentUser.roles[0]);
       return event.teamId ? userTeams.some(team => team.id === event.teamId) : true;
     }
     
-    if (currentUser.role === 'parent') {
-      const userTeams = getTeamsByUser(currentUser.id, currentUser.role);
+    if (currentUser.roles.includes('parent')) {
+      const userTeams = getTeamsByUser(currentUser.id, currentUser.roles[0]);
       return event.teamId ? userTeams.some(team => team.id === event.teamId) : true;
     }
     
@@ -267,8 +268,8 @@ const Index = () => {
                     >
                       <User className="h-4 w-4 text-gray-500" />
                       <span className="text-sm font-medium">{currentUser.name}</span>
-                      <span className={`text-xs px-2 py-1 rounded-full bg-gray-100 ${getRoleColor(currentUser.role)}`}>
-                        {getRoleLabel(currentUser.role)}
+                      <span className={`text-xs px-2 py-1 rounded-full bg-gray-100 ${getRoleColor(currentUser.roles)}`}>
+                        {getRoleLabel(currentUser.roles)}
                       </span>
                     </Button>
                   </div>

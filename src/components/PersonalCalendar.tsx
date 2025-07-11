@@ -29,7 +29,7 @@ export const PersonalCalendar: React.FC<PersonalCalendarProps> = ({
   const { currentUser } = useUser();
   const { getTeamsByUser } = useTeam();
 
-  const userTeams = currentUser ? getTeamsByUser(currentUser.id, currentUser.role) : [];
+  const userTeams = currentUser ? getTeamsByUser(currentUser.id, currentUser.roles[0]) : [];
 
   // Filter events based on user role and team assignments
   const personalEvents = useMemo(() => {
@@ -37,20 +37,20 @@ export const PersonalCalendar: React.FC<PersonalCalendarProps> = ({
 
     const filteredEvents = events.filter(event => {
       // Admins see all events
-      if (currentUser.role === 'admin') return true;
+      if (currentUser.roles.includes('admin')) return true;
 
       // Trainers see events for their assigned teams
-      if (currentUser.role === 'trainer') {
+      if (currentUser.roles.includes('trainer')) {
         return !event.teamId || userTeams.some(team => team.id === event.teamId);
       }
 
       // Players see events for their teams
-      if (currentUser.role === 'player') {
+      if (currentUser.roles.includes('player')) {
         return !event.teamId || userTeams.some(team => team.id === event.teamId);
       }
 
       // Parents see events for their children's teams
-      if (currentUser.role === 'parent') {
+      if (currentUser.roles.includes('parent')) {
         return !event.teamId || userTeams.some(team => team.id === event.teamId);
       }
 
@@ -59,7 +59,7 @@ export const PersonalCalendar: React.FC<PersonalCalendarProps> = ({
 
     // Add helper tasks as events
     const helperEvents: Event[] = helperTasks
-      .filter(task => task.assignedTo === currentUser.id || currentUser.role === 'admin')
+      .filter(task => task.assignedTo === currentUser.id || currentUser.roles.includes('admin'))
       .map(task => ({
         id: `helper-${task.id}`,
         title: task.task,

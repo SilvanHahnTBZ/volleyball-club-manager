@@ -42,18 +42,18 @@ export const HelperTaskManagement: React.FC<HelperTaskManagementProps> = ({
   const visibleTasks = useMemo(() => {
     if (!currentUser) return [];
     
-    if (currentUser.role === 'admin') {
+    if (currentUser.roles.includes('admin')) {
       return helperTasks;
     }
     
-    if (currentUser.role === 'trainer') {
+    if (currentUser.roles.includes('trainer')) {
       return helperTasks;
     }
     
     // Players and parents only see their own tasks (or their children's tasks for parents)
     return helperTasks.filter(task => {
       if (task.assignedTo === currentUser.id) return true;
-      if (currentUser.role === 'parent' && currentUser.parentOf?.includes(task.assignedTo || '')) {
+      if (currentUser.roles.includes('parent') && currentUser.parentOf?.includes(task.assignedTo || '')) {
         return true;
       }
       return false;
@@ -246,9 +246,9 @@ export const HelperTaskManagement: React.FC<HelperTaskManagementProps> = ({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="">Nicht zugewiesen</SelectItem>
-                        {users.filter(u => u.isActive && ['player', 'trainer'].includes(u.role)).map(user => (
+                        {users.filter(u => u.isActive && (u.roles.includes('player') || u.roles.includes('trainer'))).map(user => (
                           <SelectItem key={user.id} value={user.id}>
-                            {user.name} ({user.role === 'trainer' ? 'Trainer' : 'Spieler'})
+                            {user.name} ({user.roles.includes('trainer') ? 'Trainer' : 'Spieler'})
                           </SelectItem>
                         ))}
                       </SelectContent>

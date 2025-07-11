@@ -46,7 +46,7 @@ export const AdminUserManagement: React.FC = () => {
         id: profile.id,
         name: profile.name,
         email: profile.email,
-        role: profile.role,
+        roles: profile.roles || ['player'], // Use roles array
         teams: profile.teams || [],
         assignedTeams: profile.assigned_teams || [],
         parentOf: profile.parent_of || [],
@@ -66,21 +66,21 @@ export const AdminUserManagement: React.FC = () => {
     }
   };
 
-  const updateUserRole = async (userId: string, newRole: User['role']) => {
+  const updateUserRoles = async (userId: string, newRoles: User['roles']) => {
     try {
-      console.log('Updating user role:', userId, newRole);
+      console.log('Updating user roles:', userId, newRoles);
       const { error } = await supabase
         .from('profiles')
         .update({ 
-          role: newRole,
+          roles: newRoles,
           updated_at: new Date().toISOString()
         })
         .eq('id', userId);
 
       if (error) {
-        console.error('Error updating user role:', error);
+        console.error('Error updating user roles:', error);
         toast({
-          title: "Fehler beim Aktualisieren der Rolle",
+          title: "Fehler beim Aktualisieren der Rollen",
           description: error.message,
           variant: "destructive",
         });
@@ -88,15 +88,15 @@ export const AdminUserManagement: React.FC = () => {
       }
 
       setUsers(users.map(user => 
-        user.id === userId ? { ...user, role: newRole } : user
+        user.id === userId ? { ...user, roles: newRoles } : user
       ));
 
       toast({
-        title: "Rolle aktualisiert",
-        description: `Die Rolle wurde erfolgreich auf ${getRoleLabel(newRole)} geändert.`,
+        title: "Rollen aktualisiert",
+        description: `Die Rollen wurden erfolgreich geändert.`,
       });
     } catch (error) {
-      console.error('Error updating user role:', error);
+      console.error('Error updating user roles:', error);
     }
   };
 
@@ -134,30 +134,30 @@ export const AdminUserManagement: React.FC = () => {
     }
   };
 
-  const getRoleColor = (role: string) => {
-    switch (role) {
-      case 'admin': return 'bg-red-500 text-white';
-      case 'trainer': return 'bg-blue-500 text-white';
-      case 'player': return 'bg-green-500 text-white';
-      case 'parent': return 'bg-purple-500 text-white';
-      default: return 'bg-gray-500 text-white';
-    }
+  const getRoleColor = (roles: string[]) => {
+    if (roles.includes('admin')) return 'bg-red-500 text-white';
+    if (roles.includes('trainer')) return 'bg-blue-500 text-white';
+    if (roles.includes('player')) return 'bg-green-500 text-white';
+    if (roles.includes('parent')) return 'bg-purple-500 text-white';
+    return 'bg-gray-500 text-white';
   };
 
-  const getRoleLabel = (role: string) => {
-    switch (role) {
-      case 'admin': return 'Administrator';
-      case 'trainer': return 'Trainer';
-      case 'player': return 'Spieler';
-      case 'parent': return 'Elternteil';
-      default: return role;
-    }
+  const getRoleLabels = (roles: string[]) => {
+    return roles.map(role => {
+      switch (role) {
+        case 'admin': return 'Administrator';
+        case 'trainer': return 'Trainer';
+        case 'player': return 'Spieler';
+        case 'parent': return 'Elternteil';
+        default: return role;
+      }
+    });
   };
 
   const filteredUsers = users.filter(user =>
     user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.role.toLowerCase().includes(searchTerm.toLowerCase())
+    user.roles.some(role => role.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   if (loading) {
@@ -228,24 +228,30 @@ export const AdminUserManagement: React.FC = () => {
                     </DialogHeader>
                     <div className="space-y-4">
                       <div>
-                        <Label>Rolle</Label>
-                        <Select
-                          value={user.role}
-                          onValueChange={(value: User['role']) => {
-                            updateUserRole(user.id, value);
-                            setEditDialogOpen(false);
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="admin">Administrator</SelectItem>
-                            <SelectItem value="trainer">Trainer</SelectItem>
-                            <SelectItem value="player">Spieler</SelectItem>
-                            <SelectItem value="parent">Elternteil</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <Label>Rollen</Label>
+                        <div className="space-y-2">
+                          {['admin', 'trainer', 'player', 'parent'].map(role => (
+                            <div key={role} className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                id={`role-${role}`}
+                                checked={user.roles.includes(role as any)}
+                                onChange={(e) => {
+                                  const newRoles = e.target.checked 
+                                    ? [...user.roles, role as any]
+                                    : user.roles.filter(r => r !== role);
+                                  updateUserRoles(user.id, newRoles);
+                                  setEditDialogOpen(false);
+                                }}
+                              />
+                              <Label htmlFor={`role-${role}`}>
+                                {role === 'admin' ? 'Administrator' : 
+                                 role === 'trainer' ? 'Trainer' : 
+                                 role === 'player' ? 'Spieler' : 'Elternteil'}
+                              </Label>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <Button
@@ -264,10 +270,15 @@ export const AdminUserManagement: React.FC = () => {
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
+              <div className="flex flex-wrap gap-1">
+                {user.roles.map((role, index) => (
+                  <Badge key={index} className={getRoleColor([role])}>
+                    {getRoleLabels([role])[0]}
+                  </Badge>
+                ))}
+              </div>
+              
               <div className="flex items-center justify-between">
-                <Badge className={getRoleColor(user.role)}>
-                  {getRoleLabel(user.role)}
-                </Badge>
                 <Badge variant={user.isActive ? "default" : "secondary"}>
                   {user.isActive ? 'Aktiv' : 'Inaktiv'}
                 </Badge>

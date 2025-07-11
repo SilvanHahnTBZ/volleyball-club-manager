@@ -3,21 +3,16 @@ import React, { useState } from 'react';
 import { Calendar } from '@/components/Calendar';
 import { EventModal } from '@/components/EventModal';
 import { EventList } from '@/components/EventList';
+import { LoginForm } from '@/components/LoginForm';
 import { Button } from '@/components/ui/button';
-import { Plus, Volleyball } from 'lucide-react';
-
-export interface Event {
-  id: string;
-  title: string;
-  date: Date;
-  type: 'training' | 'game' | 'tournament';
-  time?: string;
-  location?: string;
-  opponent?: string;
-  description?: string;
-}
+import { Plus, Volleyball, LogIn, LogOut, Settings, User } from 'lucide-react';
+import { Event } from '@/types';
+import { useUser } from '@/contexts/UserContext';
+import { toast } from '@/hooks/use-toast';
 
 const Index = () => {
+  const { currentUser, hasPermission, logoutUser } = useUser();
+  
   const [events, setEvents] = useState<Event[]>([
     {
       id: '1',
@@ -25,7 +20,11 @@ const Index = () => {
       date: new Date(2025, 6, 15),
       type: 'training',
       time: '19:00',
-      location: 'Sporthalle Mitte'
+      location: 'Sporthalle Mitte',
+      venueType: 'indoor',
+      participants: ['1', '2'],
+      createdBy: '2',
+      maxParticipants: 12
     },
     {
       id: '2',
@@ -34,21 +33,31 @@ const Index = () => {
       type: 'game',
       time: '20:00',
       location: 'Heimhalle',
-      opponent: 'Eagles Volleyball'
+      venueType: 'indoor',
+      opponent: 'Eagles Volleyball',
+      participants: ['1', '2', '3'],
+      createdBy: '2',
+      maxParticipants: 14
     },
     {
       id: '3',
-      title: 'Stadtmeisterschaft',
+      title: 'Beach Volleyball Turnier',
       date: new Date(2025, 6, 25),
       type: 'tournament',
       time: '10:00',
-      location: 'Zentrale Sporthalle'
+      location: 'Beachcourt Stadtpark',
+      venueType: 'beach',
+      participants: ['1'],
+      createdBy: '1',
+      maxParticipants: 8
     }
   ]);
 
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
+  const [viewOnlyMode, setViewOnlyMode] = useState(false);
 
   const handleAddEvent = (eventData: Omit<Event, 'id'>) => {
     const newEvent: Event = {
@@ -57,6 +66,10 @@ const Index = () => {
     };
     setEvents([...events, newEvent]);
     setIsModalOpen(false);
+    toast({
+      title: "Event erstellt",
+      description: `"${newEvent.title}" wurde erfolgreich erstellt.`,
+    });
   };
 
   const handleEditEvent = (eventData: Omit<Event, 'id'>) => {
@@ -68,24 +81,71 @@ const Index = () => {
       ));
       setEditingEvent(null);
       setIsModalOpen(false);
+      toast({
+        title: "Event aktualisiert",
+        description: `"${eventData.title}" wurde erfolgreich aktualisiert.`,
+      });
     }
   };
 
+  const handleUpdateEvent = (updatedEvent: Event) => {
+    setEvents(events.map(event => 
+      event.id === updatedEvent.id ? updatedEvent : event
+    ));
+  };
+
   const handleDeleteEvent = (eventId: string) => {
+    const eventToDelete = events.find(e => e.id === eventId);
     setEvents(events.filter(event => event.id !== eventId));
+    toast({
+      title: "Event gelöscht",
+      description: `"${eventToDelete?.title}" wurde gelöscht.`,
+    });
   };
 
   const openEditModal = (event: Event) => {
     setEditingEvent(event);
+    setViewOnlyMode(false);
+    setIsModalOpen(true);
+  };
+
+  const openViewModal = (event: Event) => {
+    setEditingEvent(event);
+    setViewOnlyMode(true);
     setIsModalOpen(true);
   };
 
   const openAddModal = (date?: Date) => {
     setEditingEvent(null);
+    setViewOnlyMode(false);
     if (date) {
       setSelectedDate(date);
     }
     setIsModalOpen(true);
+  };
+
+  const handleLogout = () => {
+    logoutUser();
+    toast({
+      title: "Abgemeldet",
+      description: "Sie wurden erfolgreich abgemeldet.",
+    });
+  };
+
+  const getRoleColor = (role: string) => {
+    switch (role) {
+      case 'admin': return 'text-red-600';
+      case 'trainer': return 'text-blue-600';
+      default: return 'text-green-600';
+    }
+  };
+
+  const getRoleLabel = (role: string) => {
+    switch (role) {
+      case 'admin': return 'Administrator';
+      case 'trainer': return 'Trainer';
+      default: return 'Spieler';
+    }
   };
 
   return (
@@ -103,45 +163,102 @@ const Index = () => {
                 <p className="text-sm text-gray-600">Kalender & Events</p>
               </div>
             </div>
-            <Button 
-              onClick={() => openAddModal()}
-              className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Event hinzufügen
-            </Button>
+            
+            <div className="flex items-center space-x-4">
+              {currentUser ? (
+                <>
+                  <div className="flex items-center space-x-2">
+                    <User className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm font-medium">{currentUser.name}</span>
+                    <span className={`text-xs px-2 py-1 rounded-full bg-gray-100 ${getRoleColor(currentUser.role)}`}>
+                      {getRoleLabel(currentUser.role)}
+                    </span>
+                  </div>
+                  
+                  {hasPermission('create_event') && (
+                    <Button 
+                      onClick={() => openAddModal()}
+                      className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Event hinzufügen
+                    </Button>
+                  )}
+                  
+                  <Button
+                    variant="outline"
+                    onClick={handleLogout}
+                    className="border-gray-200"
+                  >
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Abmelden
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  onClick={() => setIsLoginOpen(true)}
+                  className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white"
+                >
+                  <LogIn className="h-4 w-4 mr-2" />
+                  Anmelden
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Calendar */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl shadow-lg p-6">
-              <Calendar 
-                events={events}
-                selectedDate={selectedDate}
-                onDateSelect={setSelectedDate}
-                onDateDoubleClick={openAddModal}
-                onEventClick={openEditModal}
-              />
+      {currentUser ? (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Calendar */}
+            <div className="lg:col-span-2">
+              <div className="bg-white rounded-xl shadow-lg p-6">
+                <Calendar 
+                  events={events}
+                  selectedDate={selectedDate}
+                  onDateSelect={setSelectedDate}
+                  onDateDoubleClick={hasPermission('create_event') ? openAddModal : openViewModal}
+                  onEventClick={openViewModal}
+                />
+              </div>
             </div>
-          </div>
 
-          {/* Event List */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl shadow-lg p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Kommende Events</h2>
-              <EventList 
-                events={events}
-                onEditEvent={openEditModal}
-                onDeleteEvent={handleDeleteEvent}
-              />
+            {/* Event List */}
+            <div className="lg:col-span-1">
+              <div className="bg-white rounded-xl shadow-lg p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Kommende Events</h2>
+                <EventList 
+                  events={events}
+                  onEditEvent={openEditModal}
+                  onDeleteEvent={handleDeleteEvent}
+                  onViewEvent={openViewModal}
+                />
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
+          <div className="bg-white rounded-xl shadow-lg p-12">
+            <Volleyball className="h-16 w-16 mx-auto mb-6 text-orange-500" />
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              Willkommen beim Volleyball Team
+            </h2>
+            <p className="text-lg text-gray-600 mb-8">
+              Melden Sie sich an, um Events zu sehen, sich anzumelden und am Teamleben teilzunehmen.
+            </p>
+            <Button
+              onClick={() => setIsLoginOpen(true)}
+              size="lg"
+              className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white"
+            >
+              <LogIn className="h-5 w-5 mr-2" />
+              Jetzt anmelden
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Event Modal */}
       <EventModal 
@@ -149,10 +266,19 @@ const Index = () => {
         onClose={() => {
           setIsModalOpen(false);
           setEditingEvent(null);
+          setViewOnlyMode(false);
         }}
         onSave={editingEvent ? handleEditEvent : handleAddEvent}
+        onUpdate={handleUpdateEvent}
         initialDate={selectedDate}
         editingEvent={editingEvent}
+        viewOnly={viewOnlyMode}
+      />
+
+      {/* Login Modal */}
+      <LoginForm 
+        isOpen={isLoginOpen}
+        onClose={() => setIsLoginOpen(false)}
       />
     </div>
   );

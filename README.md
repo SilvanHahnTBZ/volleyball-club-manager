@@ -1,73 +1,124 @@
-# Welcome to your Lovable project
+# 🏐 Volleyball Club Manager – Web App
 
-## Project info
+Dies ist meine selbst entwickelte Webanwendung zur Verwaltung eines Volleyballvereins. Sie unterstützt die digitale Organisation von Trainings, Spielen, Helfereinsätzen und Teamkommunikation – alles in einer modernen, responsiven Plattform.
 
-**URL**: https://lovable.dev/projects/ed851cbc-9bfd-44e9-85ef-f6da88aed56c
+---
 
-## How can I edit this code?
+## 🌟 Hauptfunktionen
 
-There are several ways of editing your application.
+- Rollenbasierte Benutzerverwaltung: Admin, Trainer, Spieler, Eltern
+- Teamübersicht und -verwaltung
+- Zentrale & persönliche Kalender
+- An-/Abmeldungen für Events (Training, Spiel, Turniere)
+- Organisation von Helfereinsätzen
+- Google Maps Verlinkung für Eventorte
+- Datei- und Medien-Uploads (z. B. PDFs, Fotos)
+- Statistiken zu Anwesenheiten & Einsätzen
+- Mobile-optimiert & ausbaufähig
 
-**Use Lovable**
+---
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/ed851cbc-9bfd-44e9-85ef-f6da88aed56c) and start prompting.
+## 🔐 Authentifizierung & Datenbank
 
-Changes made via Lovable will be committed automatically to this repo.
+Für Authentifizierung und Datenhaltung kommt **Supabase** zum Einsatz:
 
-**Use your preferred IDE**
+- **Google Auth** (OAuth 2.0)
+- E-Mail/Passwort Login
+- Benutzerprofile mit Rollenlogik
+- PostgreSQL-basierte Datenbank
+- Echtzeit-Updates & API-Zugriff
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+---
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## 🧰 Verwendete Technologien
 
-Follow these steps:
+Die Anwendung basiert auf einem modernen Tech-Stack:
+
+- **Vite** – ultraschneller Build & Dev-Server
+- **TypeScript** – typensichere Entwicklung
+- **React** – Frontend-Framework
+- **shadcn/ui** – UI-Komponentenbibliothek
+- **Tailwind CSS** – flexibles Utility-First CSS
+- **Supabase** – Backend-as-a-Service (Auth & DB)
+
+---
+
+## 🚀 Lokale Entwicklung
+
+### Voraussetzungen
+
+- Node.js & npm installiert  
+  → Empfehlung: [NVM installieren](https://github.com/nvm-sh/nvm#installing-and-updating)
+
+### Setup-Schritte
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+# 1. Repository klonen
+git clone <DEIN_GIT_REPO_URL>
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# 2. In das Projektverzeichnis wechseln
+cd volleyball-club-manager
 
-# Step 3: Install the necessary dependencies.
-npm i
+# 3. Abhängigkeiten installieren
+npm install
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# 4. Entwicklungsserver starten
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+Die App läuft standardmäßig auf [http://localhost:5173](http://localhost:5173).
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+---
 
-**Use GitHub Codespaces**
+## ✍️ Projekt bearbeiten
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+### Variante 1 – Lokaler Editor
 
-## What technologies are used for this project?
+- Öffne das Projekt in VS Code oder deinem Lieblingseditor.
+- Änderungen vornehmen, committen, pushen.
 
-This project is built with:
+### Variante 2 – GitHub direkt
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+- Zur Datei navigieren
+- ✏️ Symbol ("Edit") klicken
+- Änderungen speichern und committen
 
-## How can I deploy this project?
+### Variante 3 – GitHub Codespaces
 
-Simply open [Lovable](https://lovable.dev/projects/ed851cbc-9bfd-44e9-85ef-f6da88aed56c) and click on Share -> Publish.
+- Auf „Code“ > „Codespaces“ klicken
+- Neue Codespace-Instanz starten
+- Projekt direkt im Browser bearbeiten
 
-## Can I connect a custom domain to my Lovable project?
+---
 
-Yes, you can!
+## 🌍 Deployment
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+Diese App kann auf folgenden Plattformen gehostet werden:
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+- **Vercel** (empfohlen – CI/CD integriert)
+- **Netlify**
+- **Firebase Hosting**
+- **GitHub Pages** (statische Varianten)
+
+Für Supabase: Die Supabase-Keys werden über Umgebungsvariablen eingebunden (`.env` Datei).
+
+---
+
+## 👨‍💻 Über mich
+
+Ich bin Softwareentwickler und Volleyballspieler – dieses Projekt habe ich selbstständig umgesetzt, um den Vereinsalltag effizienter zu gestalten.  
+Dabei habe ich sowohl Frontend- als auch Backendprozesse entworfen, React-Komponenten entwickelt und die gesamte Benutzerlogik mit Supabase realisiert.
+
+Ich interessiere mich auch für Machine Learning und KI und plane, langfristig z. B. automatische Spielanalysen oder Helferplan-Vorschläge zu integrieren.
+
+---
+
+## 📬 Kontakt
+
+**E-Mail:** deine.email@example.com  
+**GitHub:** [https://github.com/deinBenutzername](https://github.com/deinBenutzername)  
+**LinkedIn:** [https://linkedin.com/in/deinProfil](https://linkedin.com/in/deinProfil)
+
+---
+
+*Dieses Projekt ist Open Source und darf gerne erweitert oder für andere Sportarten adaptiert werden.*

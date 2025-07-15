@@ -1,22 +1,8 @@
 
 import React from 'react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ExternalLink, Map } from 'lucide-react';
-import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
-
-// Fix for default markers in React-Leaflet
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
-
-// Google Maps API Key
-const GOOGLE_MAPS_API_KEY = 'AIzaSyD6hEWCQUTOiqcFHv36vgFJAlg3cYpwwos';
+import { ExternalLink, MapPin } from 'lucide-react';
 
 interface LocationMapProps {
   location: string;
@@ -29,31 +15,13 @@ export const LocationMap: React.FC<LocationMapProps> = ({
   title = "Standort",
   showMap = false 
 }) => {
-  // Simple geocoding mock - in real app you'd use a geocoding service
-  const getCoordinates = (location: string): [number, number] => {
-    // Default to Berlin coordinates
-    const defaultCoords: [number, number] = [52.5200, 13.4050];
-    
-    // Simple location mapping for common volleyball venues
-    const locationMap: { [key: string]: [number, number] } = {
-      'sporthalle mitte': [52.5170, 13.3888],
-      'sporthalle ost': [52.5232, 13.4127],
-      'sporthalle west': [52.5145, 13.3501],
-      'beachcourt stadtpark': [52.5318, 13.4015],
-      'heimhalle': [52.5200, 13.4050],
-    };
-    
-    const normalizedLocation = location.toLowerCase().trim();
-    return locationMap[normalizedLocation] || defaultCoords;
-  };
-
-  const coordinates = getCoordinates(location);
-  const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}&key=${GOOGLE_MAPS_API_KEY}`;
+  const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
 
   if (!showMap) {
     return (
       <div className="flex items-center gap-2">
-        <span className="text-sm text-gray-600">{location}</span>
+        <MapPin className="h-4 w-4 text-muted-foreground" />
+        <span className="text-sm text-muted-foreground">{location}</span>
         <Button
           variant="ghost"
           size="sm"
@@ -69,9 +37,9 @@ export const LocationMap: React.FC<LocationMapProps> = ({
   return (
     <Card>
       <CardContent className="p-4">
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-4">
           <h4 className="font-medium flex items-center gap-2">
-            <Map className="h-4 w-4" />
+            <MapPin className="h-4 w-4" />
             {title}
           </h4>
           <Button
@@ -84,29 +52,10 @@ export const LocationMap: React.FC<LocationMapProps> = ({
           </Button>
         </div>
         
-        <div className="mb-2">
-          <p className="text-sm text-gray-600">{location}</p>
-        </div>
-
-        <div className="h-48 rounded-lg overflow-hidden border">
-          <MapContainer
-            center={coordinates}
-            zoom={15}
-            style={{ height: '100%', width: '100%' }}
-          >
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-            <Marker position={coordinates}>
-              <Popup>
-                <div className="text-center">
-                  <p className="font-medium">{title}</p>
-                  <p className="text-sm">{location}</p>
-                </div>
-              </Popup>
-            </Marker>
-          </MapContainer>
+        <div className="rounded-lg border bg-muted/50 p-8 text-center">
+          <MapPin className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+          <p className="font-medium mb-1">{location}</p>
+          <p className="text-sm text-muted-foreground">Klicke auf "Google Maps" um die Route zu planen</p>
         </div>
       </CardContent>
     </Card>

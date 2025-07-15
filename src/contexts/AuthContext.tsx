@@ -15,6 +15,11 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<User>) => Promise<void>;
   
+  // Connection status
+  isOnline: boolean;
+  connectionStatus: 'connected' | 'connecting' | 'offline';
+  retryConnection: () => Promise<void>;
+  
   // User Management
   users: User[];
   currentUser: User | null;
@@ -75,8 +80,35 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<User[]>(mockUsers); // Start with mock data
   const [offlineMode, setOfflineMode] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'connecting' | 'offline'>('connecting');
 
   const currentUser = profile || null;
+
+  const checkConnection = async (): Promise<boolean> => {
+    try {
+      setConnectionStatus('connecting');
+      const { data, error } = await supabase.from('profiles').select('id').limit(1);
+      if (!error) {
+        setConnectionStatus('connected');
+        setOfflineMode(false);
+        return true;
+      }
+    } catch (error) {
+      console.warn('Connection check failed:', error);
+    }
+    setConnectionStatus('offline');
+    setOfflineMode(true);
+    return false;
+  };
+
+  const retryConnection = async () => {
+    console.log('Retrying connection...');
+    const connected = await checkConnection();
+    if (connected && user) {
+      await fetchProfile(user.id);
+      await refreshUsers();
+    }
+  };
 
   const fetchProfile = async (userId: string) => {
     if (offlineMode) return;
@@ -91,6 +123,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (error && error.code !== 'PGRST116') {
         console.warn('Error fetching profile, switching to offline mode:', error);
         setOfflineMode(true);
+        setConnectionStatus('offline');
         return;
       }
 
@@ -110,10 +143,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           registrationDate: new Date(data.created_at)
         };
         setProfile(userProfile);
+        setConnectionStatus('connected');
       }
     } catch (error) {
       console.warn('Error fetching profile, switching to offline mode:', error);
       setOfflineMode(true);
+      setConnectionStatus('offline');
     }
   };
 
@@ -157,27 +192,35 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     const initAuth = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        setSession(session);
-        setUser(session?.user ?? null);
+        // First check connection
+        const isConnected = await checkConnection();
         
-        if (session?.user) {
-          await fetchProfile(session.user.id);
-          await refreshUsers();
+        if (isConnected) {
+          const { data: { session } } = await supabase.auth.getSession();
+          setSession(session);
+          setUser(session?.user ?? null);
+          
+          if (session?.user) {
+            await fetchProfile(session.user.id);
+            await refreshUsers();
+          }
         }
       } catch (error) {
         console.warn('Error initializing auth, using offline mode:', error);
         setOfflineMode(true);
+        setConnectionStatus('offline');
       } finally {
         setLoading(false);
       }
     };
 
-    // Quick initialization with fallback
+    // Extended timeout for better connection attempts
     const timeoutId = setTimeout(() => {
+      console.log('Connection timeout - switching to offline mode');
       setLoading(false);
       setOfflineMode(true);
-    }, 3000); // 3 second timeout
+      setConnectionStatus('offline');
+    }, 10000); // Increased to 10 seconds
 
     initAuth().finally(() => {
       clearTimeout(timeoutId);
@@ -208,14 +251,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Auth methods
   const signInWithGoogle = async () => {
-    if (offlineMode) throw new Error('Offline mode - cannot sign in');
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/`,
-      },
-    });
-    if (error) throw error;
+    if (offlineMode) {
+      throw new Error('Demo-Modus: Google Anmeldung nicht verfügbar. Nutzen Sie die Email-Anmeldung mit admin@example.com, trainer@example.com oder player@example.com');
+    }
+    
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/`,
+        },
+      });
+      if (error) throw error;
+    } catch (error) {
+      console.warn('Google sign-in failed:', error);
+      throw new Error('Google Anmeldung fehlgeschlagen. Bitte versuchen Sie es später erneut.');
+    }
   };
 
   const signInWithEmail = async (email: string, password: string) => {
@@ -226,43 +277,67 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setProfile(mockUser);
         return { error: null };
       }
-      return { error: { message: 'User not found in demo mode' } };
+      return { 
+        error: { 
+          message: 'Demo-Modus: Nutzen Sie admin@example.com, trainer@example.com oder player@example.com' 
+        } 
+      };
     }
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    return { error };
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      return { error };
+    } catch (error) {
+      console.warn('Login failed, connection issue:', error);
+      return { 
+        error: { 
+          message: 'Verbindungsfehler. Bitte versuchen Sie es später erneut oder kontaktieren Sie den Support.' 
+        } 
+      };
+    }
   };
 
   const signUp = async (email: string, password: string, name: string) => {
-    if (offlineMode) throw new Error('Offline mode - cannot sign up');
-    
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { name },
-      },
-    });
-
-    if (!error && data.user) {
-      const { error: profileError } = await supabase.from('profiles').insert({
-        id: data.user.id,
-        email,
-        name,
-        roles: ['player'],
-        teams: [],
-        is_active: true,
-      });
-      
-      if (profileError) {
-        console.error('Error creating profile:', profileError);
-      }
+    if (offlineMode) {
+      throw new Error('Demo-Modus: Registrierung nicht verfügbar. Nutzen Sie die verfügbaren Demo-Accounts.');
     }
+    
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { name },
+        },
+      });
 
-    return { error };
+      if (!error && data.user) {
+        const { error: profileError } = await supabase.from('profiles').insert({
+          id: data.user.id,
+          email,
+          name,
+          roles: ['player'],
+          teams: [],
+          is_active: true,
+        });
+        
+        if (profileError) {
+          console.error('Error creating profile:', profileError);
+        }
+      }
+
+      return { error };
+    } catch (error) {
+      console.warn('Sign-up failed:', error);
+      return { 
+        error: { 
+          message: 'Registrierung fehlgeschlagen. Bitte versuchen Sie es später erneut.' 
+        } 
+      };
+    }
   };
 
   const signOut = async () => {
@@ -436,6 +511,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     signUp,
     signOut,
     updateProfile,
+    
+    // Connection status
+    isOnline: !offlineMode,
+    connectionStatus,
+    retryConnection,
     
     // User Management
     users,

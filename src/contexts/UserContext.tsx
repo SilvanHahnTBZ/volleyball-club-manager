@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '@/types';
 import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
@@ -22,22 +23,17 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { profile, signOut } = useSupabaseAuth();
   const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(false);
 
   const currentUser = profile || null;
 
-  // Simple users refresh without complex dependencies
   const refreshUsers = async () => {
-    if (loading) return;
-    
-    setLoading(true);
     try {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('is_active', true)
         .order('created_at', { ascending: false })
-        .limit(100); // Limit to prevent memory issues
+        .limit(50);
 
       if (error) {
         console.error('Error fetching users:', error);
@@ -62,12 +58,9 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUsers(userList);
     } catch (error) {
       console.error('Error refreshing users:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
-  // Only refresh when user changes
   useEffect(() => {
     if (currentUser) {
       refreshUsers();
@@ -160,48 +153,6 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return userRoles.includes('admin') || userRoles.includes('trainer');
       case 'join_event':
         return userRoles.includes('player') || userRoles.includes('trainer') || userRoles.includes('admin');
-      case 'view_profiles':
-        if (userRoles.includes('admin')) return true;
-        if (userRoles.includes('trainer') && targetUserId) {
-          const targetUser = users.find(u => u.id === targetUserId);
-          return targetUser ? targetUser.teams.some(t => currentUser.assignedTeams?.includes(t)) : false;
-        }
-        if (targetUserId) {
-          return currentUser.id === targetUserId || 
-                 (userRoles.includes('parent') && currentUser.parentOf?.includes(targetUserId));
-        }
-        return true;
-      case 'view_helper_tasks':
-        if (userRoles.includes('admin')) return true;
-        if (userRoles.includes('trainer')) return true;
-        if (targetUserId) {
-          return currentUser.id === targetUserId || 
-                 (userRoles.includes('parent') && currentUser.parentOf?.includes(targetUserId));
-        }
-        return false;
-      case 'create_helper_task':
-        return userRoles.includes('admin') || userRoles.includes('trainer');
-      case 'edit_helper_task':
-        return userRoles.includes('admin') || userRoles.includes('trainer');
-      case 'delete_helper_task':
-        return userRoles.includes('admin');
-      case 'view_team_events':
-        if (userRoles.includes('admin')) return true;
-        if (userRoles.includes('trainer') && teamId) {
-          return currentUser.assignedTeams?.includes(teamId) || false;
-        }
-        if (userRoles.includes('player') && teamId) {
-          return currentUser.teams.includes(teamId);
-        }
-        if (userRoles.includes('parent') && teamId) {
-          const childrenInTeam = users.filter(u => 
-            currentUser.parentOf?.includes(u.id) && u.teams.includes(teamId)
-          );
-          return childrenInTeam.length > 0;
-        }
-        return false;
-      case 'assign_teams':
-        return userRoles.includes('admin');
       default:
         return false;
     }

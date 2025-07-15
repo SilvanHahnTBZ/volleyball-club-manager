@@ -32,7 +32,6 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [profile, setProfile] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Simple profile fetch without complex dependencies
   const fetchProfile = async (userId: string) => {
     try {
       const { data, error } = await supabase
@@ -68,16 +67,10 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   };
 
-  // Initialize auth state once
   useEffect(() => {
-    let isMounted = true;
-
     const initAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        
-        if (!isMounted) return;
-        
         setSession(session);
         setUser(session?.user ?? null);
         
@@ -87,9 +80,7 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
       } catch (error) {
         console.error('Error initializing auth:', error);
       } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+        setLoading(false);
       }
     };
 
@@ -97,8 +88,6 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (!isMounted) return;
-        
         console.log('Auth state change:', event);
         setSession(session);
         setUser(session?.user ?? null);
@@ -114,10 +103,9 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
     );
 
     return () => {
-      isMounted = false;
       subscription.unsubscribe();
     };
-  }, []); // Empty dependency array - run only once
+  }, []);
 
   const signInWithGoogle = async () => {
     const { error } = await supabase.auth.signInWithOAuth({

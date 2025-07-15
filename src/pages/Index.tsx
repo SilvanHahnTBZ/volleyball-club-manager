@@ -15,15 +15,13 @@ import { Plus, Volleyball, LogIn, LogOut, User, Users, Calendar as CalendarIcon,
 import { Event, HelperTask } from '@/types';
 import { useUser } from '@/contexts/UserContext';
 import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
-import { useTeam } from '@/contexts/TeamContext';
 import { toast } from '@/hooks/use-toast';
 
 const Index = () => {
   const { currentUser, hasPermission, logoutUser } = useUser();
   const { loading } = useSupabaseAuth();
-  const { getTeamsByUser } = useTeam();
   
-  // Static initial data to prevent recalculation
+  // Simplified static data
   const [events] = useState<Event[]>([
     {
       id: '1',
@@ -37,32 +35,6 @@ const Index = () => {
       createdBy: '2',
       maxParticipants: 12,
       teamId: '1'
-    },
-    {
-      id: '2',
-      title: 'Spiel vs. Eagles',
-      date: new Date(2025, 6, 18),
-      type: 'game',
-      time: '20:00',
-      location: 'Heimhalle',
-      venueType: 'indoor',
-      opponent: 'Eagles Volleyball',
-      participants: ['1', '2', '3'],
-      createdBy: '2',
-      maxParticipants: 14,
-      teamId: '3'
-    },
-    {
-      id: '3',
-      title: 'Beach Volleyball Turnier',
-      date: new Date(2025, 6, 25),
-      type: 'tournament',
-      time: '10:00',
-      location: 'Beachcourt Stadtpark',
-      venueType: 'beach',
-      participants: ['1'],
-      createdBy: '1',
-      maxParticipants: 8
     }
   ]);
 
@@ -76,17 +48,6 @@ const Index = () => {
       createdBy: '2',
       description: 'Schiedsrichter für das U16 Spiel am Samstag',
       priority: 'high'
-    },
-    {
-      id: '2',
-      task: 'Hallenaufbau Turnier',
-      status: 'completed',
-      assignedTo: '5',
-      assignedDate: new Date(2025, 6, 10),
-      completedDate: new Date(2025, 6, 10),
-      createdBy: '1',
-      description: 'Aufbau der Netze und Bänke für das Turnier',
-      priority: 'medium'
     }
   ]);
 
@@ -98,7 +59,6 @@ const Index = () => {
   const [viewOnlyMode, setViewOnlyMode] = useState(false);
   const [activeTab, setActiveTab] = useState('calendar');
 
-  // Simple event handlers without complex state updates
   const handleAddEvent = (eventData: Omit<Event, 'id'>) => {
     console.log('Adding event:', eventData);
     setIsModalOpen(false);
@@ -130,18 +90,6 @@ const Index = () => {
     });
   };
 
-  const handleCreateHelperTask = (taskData: Omit<HelperTask, 'id'>) => {
-    console.log('Creating helper task:', taskData);
-  };
-
-  const handleUpdateHelperTask = (taskId: string, updates: Partial<HelperTask>) => {
-    console.log('Updating helper task:', taskId, updates);
-  };
-
-  const handleDeleteHelperTask = (taskId: string) => {
-    console.log('Deleting helper task:', taskId);
-  };
-
   const openEditModal = (event: Event) => {
     setEditingEvent(event);
     setViewOnlyMode(false);
@@ -171,7 +119,6 @@ const Index = () => {
     });
   };
 
-  // Simple role utilities without complex calculations
   const getRoleColor = (roles: string[]) => {
     if (roles.includes('admin')) return 'text-red-600';
     if (roles.includes('trainer')) return 'text-blue-600';
@@ -192,23 +139,6 @@ const Index = () => {
     });
     return roleLabels.join(', ');
   };
-
-  // Simple user events filter
-  const userEvents = currentUser ? events.filter(event => {
-    if (currentUser.roles.includes('admin')) return true;
-    
-    if (currentUser.roles.includes('trainer') || currentUser.roles.includes('player') || currentUser.roles.includes('parent')) {
-      try {
-        const userTeams = getTeamsByUser(currentUser.id, currentUser.roles[0]);
-        return event.teamId ? userTeams.some(team => team.id === event.teamId) : true;
-      } catch (error) {
-        console.error('Error filtering user events:', error);
-        return true;
-      }
-    }
-    
-    return true;
-  }) : events;
 
   if (loading) {
     return (
@@ -323,11 +253,11 @@ const Index = () => {
                 <div className="lg:col-span-2">
                   <div className="bg-white rounded-xl shadow-lg p-6">
                     <PersonalCalendar
-                      events={userEvents}
+                      events={events}
                       helperTasks={helperTasks}
                       selectedDate={selectedDate}
                       onDateSelect={setSelectedDate}
-                      onDateDoubleClick={(date: Date) => hasPermission('create_event') ? openAddModal(date) : openViewModal(userEvents.find(e => e.date.toDateString() === date.toDateString()) || userEvents[0])}
+                      onDateDoubleClick={(date: Date) => hasPermission('create_event') ? openAddModal(date) : openViewModal(events[0])}
                       onEventClick={openViewModal}
                     />
                   </div>
@@ -337,7 +267,7 @@ const Index = () => {
                   <div className="bg-white rounded-xl shadow-lg p-6">
                     <h2 className="text-lg font-semibold text-gray-900 mb-4">Kommende Events</h2>
                     <EventList 
-                      events={userEvents}
+                      events={events}
                       onEditEvent={openEditModal}
                       onDeleteEvent={handleDeleteEvent}
                       onViewEvent={openViewModal}
@@ -356,19 +286,19 @@ const Index = () => {
             <TabsContent value="helper" className="space-y-0">
               <HelperTaskManagement
                 helperTasks={helperTasks}
-                onCreateTask={handleCreateHelperTask}
-                onUpdateTask={handleUpdateHelperTask}
-                onDeleteTask={handleDeleteHelperTask}
+                onCreateTask={(taskData) => console.log('Creating helper task:', taskData)}
+                onUpdateTask={(taskId, updates) => console.log('Updating helper task:', taskId, updates)}
+                onDeleteTask={(taskId) => console.log('Deleting helper task:', taskId)}
               />
             </TabsContent>
 
             <TabsContent value="personal" className="space-y-0">
               <PersonalCalendar
-                events={userEvents}
+                events={events}
                 helperTasks={helperTasks}
                 selectedDate={selectedDate}
                 onDateSelect={setSelectedDate}
-                onDateDoubleClick={(date: Date) => hasPermission('create_event') ? openAddModal(date) : openViewModal(userEvents.find(e => e.date.toDateString() === date.toDateString()) || userEvents[0])}
+                onDateDoubleClick={(date: Date) => hasPermission('create_event') ? openAddModal(date) : openViewModal(events[0])}
                 onEventClick={openViewModal}
               />
             </TabsContent>

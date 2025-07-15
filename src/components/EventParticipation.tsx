@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Users, UserCheck, UserX, Clock } from 'lucide-react';
 import { Event } from '@/types';
-import { useUser } from '@/contexts/UserContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 
 interface EventParticipationProps {
@@ -16,7 +16,7 @@ export const EventParticipation: React.FC<EventParticipationProps> = ({
   event,
   onUpdateEvent
 }) => {
-  const { currentUser } = useUser();
+  const { currentUser } = useAuth();
   
   if (!currentUser) return null;
 

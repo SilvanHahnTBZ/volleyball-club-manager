@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Clock, MapPin, Users, Edit, Trash2, Eye } from 'lucide-react';
 import { Event } from '@/types';
-import { useUser } from '@/contexts/UserContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface EventListProps {
   events: Event[];
@@ -19,7 +19,7 @@ export const EventList: React.FC<EventListProps> = ({
   onDeleteEvent,
   onViewEvent
 }) => {
-  const { currentUser, hasPermission } = useUser();
+  const { currentUser, hasPermission } = useAuth();
   
   // Sort events by date (upcoming first)
   const sortedEvents = [...events]

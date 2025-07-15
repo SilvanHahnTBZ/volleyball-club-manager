@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Team, User } from '@/types';
 import { useTeam } from '@/contexts/TeamContext';
-import { useUser } from '@/contexts/UserContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Search, UserPlus, UserMinus, Crown } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
@@ -19,7 +19,7 @@ interface TeamAssignmentProps {
 
 export const TeamAssignment: React.FC<TeamAssignmentProps> = ({ isOpen, onClose, team }) => {
   const { addPlayerToTeam, removePlayerFromTeam, addTrainerToTeam, removeTrainerFromTeam, getTeamPlayers, getTeamTrainers } = useTeam();
-  const { users } = useUser();
+  const { users } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'players' | 'trainers'>('players');
 

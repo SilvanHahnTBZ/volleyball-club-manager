@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { HelperTask } from '@/types';
-import { useUser } from '@/contexts/UserContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Plus, Wrench, CheckCircle, Clock, XCircle, Edit, Trash2, BarChart3 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
@@ -27,7 +27,7 @@ export const HelperTaskManagement: React.FC<HelperTaskManagementProps> = ({
   onUpdateTask,
   onDeleteTask
 }) => {
-  const { currentUser, users, hasPermission } = useUser();
+  const { currentUser, users, hasPermission } = useAuth();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<HelperTask | null>(null);
   const [newTask, setNewTask] = useState({

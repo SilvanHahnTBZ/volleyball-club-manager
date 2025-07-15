@@ -12,13 +12,11 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Volleyball, LogIn, LogOut, User, Users, Calendar as CalendarIcon, Wrench, Shield } from 'lucide-react';
 import { Event, HelperTask } from '@/types';
-import { useUser } from '@/contexts/UserContext';
-import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 
 const Index = () => {
-  const { currentUser, hasPermission, logoutUser } = useUser();
-  const { loading } = useSupabaseAuth();
+  const { currentUser, hasPermission, logoutUser, loading } = useAuth();
   
   // Simplified static data
   const [events] = useState<Event[]>([

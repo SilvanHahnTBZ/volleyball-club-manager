@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Team, User } from '@/types';
 import { useTeam } from '@/contexts/TeamContext';
-import { useUser } from '@/contexts/UserContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { TeamForm } from './TeamForm';
 import { TeamAssignment } from './TeamAssignment';
 import { Plus, Users, UserPlus, Settings, Trash2 } from 'lucide-react';
@@ -14,7 +14,7 @@ import { toast } from '@/hooks/use-toast';
 
 export const TeamManagement: React.FC = () => {
   const { teams, deleteTeam, getTeamPlayers, getTeamTrainers } = useTeam();
-  const { users, currentUser, hasPermission } = useUser();
+  const { users, currentUser, hasPermission } = useAuth();
   const [showTeamForm, setShowTeamForm] = useState(false);
   const [showAssignment, setShowAssignment] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);

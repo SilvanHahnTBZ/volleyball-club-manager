@@ -4,7 +4,7 @@ import { Calendar } from '@/components/Calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Event, HelperTask } from '@/types';
-import { useUser } from '@/contexts/UserContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Calendar as CalendarIcon, Users, Wrench, Trophy } from 'lucide-react';
 
 interface PersonalCalendarProps {
@@ -24,7 +24,7 @@ export const PersonalCalendar: React.FC<PersonalCalendarProps> = ({
   onDateDoubleClick,
   selectedDate
 }) => {
-  const { currentUser } = useUser();
+  const { currentUser } = useAuth();
 
   if (!currentUser) {
     return (

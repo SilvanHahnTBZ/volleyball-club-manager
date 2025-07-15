@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { User, Team, Event, HelperTask } from '@/types';
-import { useUser } from '@/contexts/UserContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useTeam } from '@/contexts/TeamContext';
 import { User2, Mail, Phone, Calendar, Shield, Users, Trophy, Wrench, CheckCircle, Clock, XCircle } from 'lucide-react';
 
@@ -28,7 +28,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({
   events = [], 
   helperTasks = [] 
 }) => {
-  const { updateUser, currentUser, hasPermission } = useUser();
+  const { updateUser, currentUser, hasPermission } = useAuth();
   const { teams } = useTeam();
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<User>>({});

@@ -8,9 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Event } from '@/types';
-import { useUser } from '@/contexts/UserContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { EventParticipation } from './EventParticipation';
-import { LocationMap } from './LocationMap';
 
 interface EventModalProps {
   isOpen: boolean;
@@ -31,7 +30,7 @@ export const EventModal: React.FC<EventModalProps> = ({
   editingEvent,
   viewOnly = false
 }) => {
-  const { currentUser, hasPermission } = useUser();
+  const { currentUser, hasPermission } = useAuth();
   
   const [formData, setFormData] = useState({
     title: '',
@@ -192,11 +191,18 @@ export const EventModal: React.FC<EventModalProps> = ({
 
             <TabsContent value="location">
               {editingEvent.location ? (
-                <LocationMap 
-                  location={editingEvent.location} 
-                  title={editingEvent.title}
-                  showMap={true}
-                />
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-sm font-medium">Standort</Label>
+                    <p className="text-gray-700 font-medium">{editingEvent.location}</p>
+                  </div>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-sm text-gray-600">
+                      Die Karten-Integration ist aktuell nicht verfügbar. 
+                      Bitte verwenden Sie eine Navigations-App Ihrer Wahl.
+                    </p>
+                  </div>
+                </div>
               ) : (
                 <p className="text-gray-600 text-center py-8">Kein Standort für dieses Event hinterlegt</p>
               )}
@@ -312,11 +318,14 @@ export const EventModal: React.FC<EventModalProps> = ({
                   </Button>
                 </div>
                 {showMap && (
-                  <LocationMap 
-                    location={formData.location} 
-                    title={formData.title || 'Event'}
-                    showMap={true}
-                  />
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-sm text-gray-600">
+                      <strong>Standort:</strong> {formData.location}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Die Karten-Integration ist aktuell nicht verfügbar.
+                    </p>
+                  </div>
                 )}
               </div>
             )}
